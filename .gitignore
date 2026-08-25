@@ -1,10 +1,10 @@
 __pycache__/
 *.pyc
 *.pth
+!weights/global_model_FedAvg.pth
 *.npy
 *.npz
 data/
-weights/
 outputs/
 configs/spacing.csv
 configs/cirrhosis.csv

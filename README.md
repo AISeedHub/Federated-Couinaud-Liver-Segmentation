@@ -119,6 +119,21 @@ python analysis/compare_single_fl.py --single-weight <single.pth> --fl-weight <g
 python analysis/seg_visualize.py --test-only
 ```
 
+## Pretrained weights
+
+The final FedAvg global model (10 rounds × 10 local epochs, four institutions) is included at
+`weights/global_model_FedAvg.pth` (SegResNet, 4.7M parameters). Load it with:
+
+```python
+import torch, yaml
+from src.use_cases.liver_segmentation.models.segresnet_morph import build_model
+
+config = yaml.safe_load(open("src/use_cases/liver_segmentation/configs/base.yaml"))
+model = build_model(config, torch.device("cpu"))
+model.load_state_dict(torch.load("weights/global_model_FedAvg.pth", map_location="cpu"))
+model.eval()
+```
+
 ## Data availability
 
 CT images and annotations contain protected health information and are **not distributed**.
