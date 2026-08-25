@@ -5,13 +5,9 @@ seg_visualize.py — 연합학습(FedAvg) vs 단일기관 분절 세그멘테이
 CT 슬라이스 위에 GT / Single / FedAvg 분절을 색으로 오버레이해, 연합학습이
 단일기관보다 잘 맞추는 것을 시각적으로 보여준다.
 
-★ z 정렬: 데이터셋이 D>80이면 가운데 80슬라이스만 center-crop 하므로,
-  CT·GT·예측을 모두 '데이터셋이 처리한 공간(80슬라이스·256)'에서 그린다
-  (native로 되돌려 늘리면 z가 어긋남). 이 방식은 evaluate() Dice와도 일치.
-
 실행:
   python3 seg_visualize.py --data-dir <데이터> --fl-weight <FL.pth> --single-weight <single.pth>
-  python3 seg_visualize.py --data-dir <데이터> --fl-weight <FL.pth> --pid 878676 --n-patients 6
+  python3 seg_visualize.py --data-dir <데이터> --fl-weight <FL.pth> --pid <PATIENT_ID> --n-patients 6
 출력: outputs/analysis/seg_viz/<pid>_overlay.png
 """
 import os, sys, argparse

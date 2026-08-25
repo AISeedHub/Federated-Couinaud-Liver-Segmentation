@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-실측 픽셀 스페이싱 기반 GT 부피 복원 + 임상 퀀트 분석 (모델 추론 없음, CPU)
-모든 부피 = GT 마스크 × 실측 spacing (ISP 무관, ISP는 비교용으로만)
-채널: ch0=배경, ch1~9=Seg1~Seg8, ch10~17=병변
-원본 1024 매트릭스 환자는 512 다운샘플 → spacing ×2 보정
 
 출력 (outputs/analysis/):
   volume_comparison.csv / spacing_calibration.csv / segment_stats.csv

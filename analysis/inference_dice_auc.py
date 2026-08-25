@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-inference_dice_auc.py — 분당서울대 held-out test 6케이스 추론
+inference_dice_auc.py - held-out test 추론
   · 분절별 Dice (공식 MONAI DiceMetric @256, 빈분절 제외)
   · 분절별 voxel-level AUC (sigmoid 확률 vs GT, sklearn roc_auc_score)
   · Dice/AUC 평균이 0.90(90%) 넘는지 판정

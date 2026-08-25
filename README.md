@@ -64,6 +64,12 @@ conda activate fedmed
 pip install -r requirements.txt
 ```
 
+Alternatively, install with [uv](https://docs.astral.sh/uv/) using the committed `pyproject.toml` / `uv.lock`:
+
+```bash
+uv sync
+```
+
 ## Usage
 
 **1. Data layout** (per patient): `data/combined_80/<patient_id>/{image.npy, mask.npy}`
@@ -77,11 +83,29 @@ standardized to 80 slices (zero-padded if fewer) at load time.
 python training/train_single.py
 ```
 
-**3. Federated learning** — start the server, then run a client at each institution:
+**3. Federated learning** — start the server first (the server holds **no data**), then run a
+client at each institution (any order; each client auto-scans its local data folder):
 
 ```bash
-bash src/run_liver_server.sh          # central server
-bash src/run_liver_client.sh          # at each institution (set --server-address)
+# Central server (default port 9595, see configs/base.yaml)
+./src/run_liver_server.sh
+
+# Each institution — SERVER_ADDRESS + local data dir
+./src/run_liver_client.sh <SERVER_IP>:9595 /data/liver_ct
+```
+
+Or invoke the entry points directly:
+
+```bash
+python src/use_cases/liver_segmentation/main_server.py --config src/use_cases/liver_segmentation/configs/base.yaml
+python src/use_cases/liver_segmentation/main_client.py --server-address <SERVER_IP>:9595 --data-dir /data/liver_ct
+```
+
+Before joining, each institution can verify dependencies, GPU, data layout, and server
+connectivity with:
+
+```bash
+python src/use_cases/liver_segmentation/check_ready.py --data-dir /data/liver_ct --server-address <SERVER_IP>:9595
 ```
 
 10 rounds × 10 local epochs, FedAvg aggregation; architecture, seed, and effective
