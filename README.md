@@ -1,4 +1,4 @@
-# Federated Learning for Automatic Segmentation of Nine Couinaud Liver Segments across Four Institutions
+# Federated Learning for Automatic Segmentation of Nine Couinaud Liver Segments across Four Institutions: A Feasibility Study
 
 Official implementation of the feasibility study on privacy-preserving, real-world multi-institutional
 **federated learning (FedAvg)** for automatic segmentation of the nine Couinaud liver segments
