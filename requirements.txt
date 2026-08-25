@@ -1,0 +1,9 @@
+# Exact versions used for federated training (Python 3.12.4, CUDA 12.6, Quadro RTX 8000 48GB)
+torch==2.12.0          # cu126 build
+monai==1.5.2
+flwr==1.11.1
+numpy
+opencv-python
+scipy
+matplotlib
+tqdm

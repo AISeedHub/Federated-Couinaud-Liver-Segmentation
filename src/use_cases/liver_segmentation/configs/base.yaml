@@ -1,0 +1,35 @@
+# ══════════════════════════════════════════════════════════════════
+# FedMorph — Quick Test Configuration
+# ══════════════════════════════════════════════════════════════════
+# 더미 데이터로 통신 및 전체 파이프라인을 빠르게 검증하기 위한 설정.
+# 2 라운드 × 2 에폭으로 최소한의 학습만 수행합니다.
+
+server_address: "0.0.0.0:9595"
+fl_rounds: 10
+min_clients: 4
+local_epochs: 10
+
+method: "FedMorph"
+fedprox_mu: 0.01
+
+batch_size: 1
+learning_rate: 5.0e-4
+weight_decay: 1.0e-4
+morph_coeff: 0.005
+seg_warmup_epochs: 30
+train_ratio: 0.8
+val_ratio: 0.1
+seed: 42
+
+num_workers: 10
+
+
+num_classes: 9
+init_filters: 16
+blocks_down: [1, 2, 2, 4]
+blocks_up: [1, 1, 1]
+
+image_size: 256
+volume_depth: 80
+
+data_dir: "./tests/dummy_data"

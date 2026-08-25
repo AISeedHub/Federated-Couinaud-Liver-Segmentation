@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pth
+*.npy
+*.npz
+data/
+weights/
+outputs/
+configs/spacing.csv
+configs/cirrhosis.csv
+.DS_Store
