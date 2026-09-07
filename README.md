@@ -4,10 +4,13 @@
   <img src="assets/figure1.jpg" width="90%" alt="Federated learning pipeline">
 </p>
 
-> **v2** — nnU-Net(TotalSegmentator init) 기반 2차 캠페인 코드. 논문(feasibility study, v1 SegResNet/FedAvg) 버전은 태그 [`v1.0-paper`](../../tree/v1.0-paper) 에 보존되어 있다.
 
-nnU-Net(TotalSegmentator 3d_fullres) 구조 + TS 공식 가중치 초기화 → 공용 CT 사전학습 → 다기관 연합학습(FedAvg / FedProx / FedAdam / FedBN-IN) → 외부 검증.
-v1 레포(FedMed)와 독립된 자체 완결형 레포이며 **잠금 파일(uv.lock) 없음** — 각 머신의 CUDA에 맞춰 설치 스크립트가 torch를 고른다.
+복부 CT에서 Couinaud 간 9분절(I, II, III, IVa, IVb, V–VIII)을 자동 분할하는 다기관 연합학습 프레임워크.
+
+- **모델**: nnU-Net v2의 3D full-resolution U-Net(PlainConvUNet, 31M 파라미터) 구조를 사용하고, 인코더·디코더를 TotalSegmentator(Wasserthal et al., *Radiology: AI* 2023) 공식 가중치로 초기화한다.
+- **학습 3단계**: ① 공개 CT 데이터셋(8분절 라벨, 634례)에서 사전학습 → ② 각 기관 데이터로 단일기관 학습과 연합학습(FedAvg · FedProx · FedAdam · FedBN-IN, Flower 기반, 기관별 5-fold 교차검증) → ③ 공개 벤치마크(MSD/Tian)와 외부 코호트(TCIA CRLM, MRI)에서 검증.
+- 원자료(CT)는 각 기관 밖으로 나가지 않으며, 서버와는 모델 파라미터만 교환한다. 결과 반출물은 환자 식별자를 자동 익명화(Case N)한다.
+
 
 ---
 
