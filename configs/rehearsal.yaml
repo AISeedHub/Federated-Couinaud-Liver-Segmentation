@@ -1,0 +1,21 @@
+# 4센터 논문 실험 — 포트 9597
+experiment: rehearsal
+server_address: "0.0.0.0:9597"
+client_server_address: "127.0.0.1:9597"
+min_clients: 2
+rounds: 2            # rounds × local_epochs = 총 에폭 (단일센터와 동일)
+local_epochs: 2
+methods: [FedAvg, FedProx, FedAdam, FedBN]
+folds: [0, 1]
+n_folds: 5
+seed: 42
+val_frac: 0.1
+lr: 0.01
+fedprox_mu: 0.01
+fedadam_lr: 0.001
+amp: 0                # f32 (센터 24GB에서 z96×256² 13.6GB 실측)
+init_weights: outputs/rehearsal_init.pth   # 모의시험용 TS-init 가중치
+output_dir: outputs
+upload_url: "http://127.0.0.1:9598/upload"
+round_timeout_sec: 10800   # 라운드 제한시간(초): 응답 없는 센터를 기다리다 멈추지 않음(센터 라운드 ≈ 20–40분)
+gap_sec: 10

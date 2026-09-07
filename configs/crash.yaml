@@ -1,0 +1,20 @@
+# 로컬 통신 테스트 — 2 클라이언트, 1 라운드 × 1 에폭
+experiment: crash
+server_address: "0.0.0.0:9589"
+client_server_address: "127.0.0.1:9589"
+min_clients: 2
+rounds: 3
+local_epochs: 1
+methods: [FedAvg]
+folds: [0]
+n_folds: 5
+seed: 42
+val_frac: 0.1
+lr: 0.01
+fedprox_mu: 0.01
+fedadam_lr: 0.001
+amp: 1
+init_weights: ""
+output_dir: outputs
+round_timeout_sec: 240
+gap_sec: 3

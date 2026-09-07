@@ -1,0 +1,22 @@
+# 4센터 논문 실험 — 포트 9595
+experiment: exp4c
+server_address: "0.0.0.0:9595"
+client_server_address: "168.131.153.57:9595"
+min_clients: 4
+rounds: 20            # rounds × local_epochs = 총 에폭 (단일센터와 동일)
+local_epochs: 10
+methods: [FedAvg, FedProx, FedAdam, FedBN]
+folds: [0, 1, 2, 3, 4]
+n_folds: 5
+seed: 42
+val_frac: 0.1
+lr: 0.01
+fedprox_mu: 0.01
+fedadam_lr: 0.001
+amp: 0                # f32 (센터 24GB에서 z96×256² 13.6GB 실측)
+init_weights: outputs/pretrain/best.pth   # 공용 사전학습 가중치 — 배포 시 같은 경로에 배치
+output_dir: outputs
+upload_url: "http://168.131.153.57:9598/upload"   # 결과 수집 서버
+round_timeout_sec: 10800   # 라운드 제한시간(초): 응답 없는 센터를 기다리다 멈추지 않음(센터 라운드 ≈ 20–40분)
+gap_sec: 10
+run_single: 1

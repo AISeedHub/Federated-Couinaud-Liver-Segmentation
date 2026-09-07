@@ -1,0 +1,20 @@
+# 로컬 통신 테스트 — 2 클라이언트, 1 라운드 × 1 에폭
+experiment: smoke
+server_address: "0.0.0.0:9599"
+client_server_address: "127.0.0.1:9599"
+min_clients: 2
+rounds: 2
+local_epochs: 1
+methods: [FedAvg, FedProx, FedAdam, FedBN]
+folds: [0]
+n_folds: 5
+seed: 42
+val_frac: 0.1
+lr: 0.01
+fedprox_mu: 0.01
+fedadam_lr: 0.001
+amp: 1
+init_weights: ""
+output_dir: outputs
+round_timeout_sec: 10800   # 라운드 제한시간(초): 응답 없는 센터를 기다리다 멈추지 않음(센터 라운드 ≈ 20–40분)
+gap_sec: 3

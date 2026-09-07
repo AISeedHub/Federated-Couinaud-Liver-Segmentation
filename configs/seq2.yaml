@@ -1,0 +1,22 @@
+# 4센터 논문 실험 — 포트 9591
+experiment: seq2
+server_address: "0.0.0.0:9591"
+client_server_address: "127.0.0.1:9591"
+min_clients: 3
+rounds: 1            # rounds × local_epochs = 총 에폭 (단일센터와 동일)
+local_epochs: 1
+methods: [FedAvg, FedProx, FedAdam, FedBN]
+folds: [0]
+n_folds: 5
+seed: 42
+val_frac: 0.1
+lr: 0.01
+fedprox_mu: 0.01
+fedadam_lr: 0.001
+amp: 1                # 모의시험: 이 서버 GPU 공유 탓에 AMP(순차 로직 검증 목적)
+init_weights: outputs/rehearsal_init.pth   # 모의시험용 TS-init 가중치
+output_dir: outputs
+upload_url: "http://127.0.0.1:9598/upload"
+round_timeout_sec: 10800   # 라운드 제한시간(초): 응답 없는 센터를 기다리다 멈추지 않음(센터 라운드 ≈ 20–40분)
+gap_sec: 10
+run_single: 0
