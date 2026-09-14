@@ -22,15 +22,15 @@
 
 ### Windows (cmd 또는 PowerShell)
 ```bat
-git clone https://github.com/AISeedHub/CouinaudFL.git
-cd CouinaudFL
+git clone https://github.com/AISeedHub/Federated-Couinaud-Liver-Segmentation.git
+cd Federated-Couinaud-Liver-Segmentation
 scripts\install.bat
 ```
 PowerShell에서는 `.\scripts\install.bat` 처럼 앞에 `.\`를 붙인다(실행 정책 변경 불필요). 이후 모든 `.bat` 실행도 동일.
 ### Linux / DGX Spark
 ```bash
-git clone https://github.com/AISeedHub/CouinaudFL.git
-cd CouinaudFL
+git clone https://github.com/AISeedHub/Federated-Couinaud-Liver-Segmentation.git
+cd Federated-Couinaud-Liver-Segmentation
 bash scripts/install.sh
 ```
 설치 스크립트가 하는 일: uv 설치 → `.venv` 생성 → `nvidia-smi`의 CUDA 버전으로 torch 휠 인덱스 선택(cu121/cu126/cu128/cu130, ARM은 cu130) → 의존성 설치 → GPU 인식 출력.
@@ -89,7 +89,7 @@ export COUINAUD_SPACING_CSV=/data/volumes_per_patient.csv
 
 **Windows** — 순천향천안 A · 강릉아산 C (cmd 또는 PowerShell, PowerShell은 앞에 `.\`)
 ```bat
-cd C:\CouinaudFL
+cd C:\Federated-Couinaud-Liver-Segmentation
 scripts\run_center_seq.bat D:\data\liver A exp4c exp5c
 ```
 (C는 센터 코드만 교체.) 창을 닫지 말 것(닫으면 재시작 루프도 종료). 절전·화면 잠금은 스크립트가 해제한다.
@@ -101,21 +101,21 @@ scripts\run_center_seq.bat D:\data\liver A exp4c exp5c
 
 **DGX Spark (Linux aarch64, CUDA 13)** — 고려대안산 B
 ```bash
-cd ~/CouinaudFL
+cd ~/Federated-Couinaud-Liver-Segmentation
 nohup bash scripts/run_center_seq.sh /home/crex/fedlr/LiverSegmentation/merged B exp4c exp5c > /dev/null 2>&1 &
 tail -f outputs/exp4c/$(cat outputs/exp4c/LAST_RUN)/client_B/run_center.log
 ```
 
 **Ubuntu (x86)** — 분당서울대 D
 ```bash
-cd ~/CouinaudFL
+cd ~/Federated-Couinaud-Liver-Segmentation
 nohup bash scripts/run_center_seq.sh /data/liver D exp4c exp5c > /dev/null 2>&1 &
 tail -f outputs/exp4c/$(cat outputs/exp4c/LAST_RUN)/client_D/run_center.log
 ```
 
 **Ubuntu (x86)** — 전남대 E, exp5c만 (서버와 같은 학내망이라 방화벽 무관)
 ```bash
-cd ~/CouinaudFL
+cd ~/Federated-Couinaud-Liver-Segmentation
 nohup bash scripts/run_center.sh exp5c ~/e_center_mr E > /dev/null 2>&1 &
 tail -f outputs/exp5c/$(cat outputs/exp5c/LAST_RUN)/client_E/run_center.log
 ```
@@ -123,7 +123,7 @@ exp4c가 끝나 서버가 9596을 열 때까지 "연결 대기"를 반복하는 
 Linux에서 재부팅에도 자동 복구하려면(선택):
 ```bash
 crontab -e   # 아래 한 줄 추가 (경로·코드는 센터에 맞게)
-@reboot cd ~/CouinaudFL && RUN_NAME=$(cat outputs/exp5c/LAST_RUN 2>/dev/null) bash scripts/run_center.sh exp5c ~/e_center_mr E
+@reboot cd ~/Federated-Couinaud-Liver-Segmentation && RUN_NAME=$(cat outputs/exp5c/LAST_RUN 2>/dev/null) bash scripts/run_center.sh exp5c ~/e_center_mr E
 ```
 
 단일 실험만 돌릴 때:
@@ -191,7 +191,7 @@ Linux는 `.venv/bin/python` 으로 바꾸면 동일.
 
 **한 번의 실행으로 전부** — 4센터 exp4c(9595) 완료 후 5센터 exp5c(9596) 순차 + 결과 수집 서버(9598) 내장:
 ```bash
-cd /home/dspserver/2025/jin/CouinaudFL
+cd Federated-Couinaud-Liver-Segmentation
 nohup .venv/bin/python scripts/server.py --config configs/exp4c.yaml configs/exp5c.yaml --run run_main > outputs/server_run_main.out 2>&1 &
 ```
 센터 쪽은 `run_center_seq ... exp4c exp5c` 한 줄이므로 양쪽 모두 명령 하나씩이다. 순서: exp4c fold 0–4 × 4방법론 → 모두 끝나면 exp5c 서버가 열리고, 5개 센터가 접속하는 대로 시작.
