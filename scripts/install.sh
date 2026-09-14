@@ -9,6 +9,7 @@ MAJ=${CUDA%%.*}; MIN=${CUDA#*.}; MIN=${MIN%%.*}
 if [ "$MAJ" -ge 13 ]; then IDX=cu130; elif [ "$MAJ" -eq 12 ] && [ "$MIN" -ge 8 ]; then IDX=cu128; elif [ "$MAJ" -eq 12 ] && [ "$MIN" -ge 6 ]; then IDX=cu126; elif [ "$MAJ" -eq 12 ]; then IDX=cu121; else IDX=cpu; fi
 ARCH=$(uname -m); [ "$ARCH" = "aarch64" ] && [ "$IDX" != "cu130" ] && IDX=cu130   # DGX Spark 등 ARM은 cu130 휠만 제공
 echo "CUDA driver $CUDA → torch index $IDX ($ARCH)"
-uv pip install --python .venv torch torchvision --index-url https://download.pytorch.org/whl/$IDX
+# 순서 중요: 의존성 먼저, torch는 '마지막에' 인덱스 강제 — 뒤 단계가 PyPI 최신(cu130)으로 바꿔치기하는 사고 방지
 uv pip install --python .venv -e .
+uv pip install --python .venv --reinstall torch torchvision --index-url https://download.pytorch.org/whl/$IDX
 .venv/bin/python -c "import torch;print('torch',torch.__version__,'cuda',torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else '')"

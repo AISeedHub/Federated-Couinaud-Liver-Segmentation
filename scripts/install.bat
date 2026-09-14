@@ -12,6 +12,7 @@ if %MAJ%==12 if %MIN% GEQ 8 set IDX=cu128
 if %MAJ%==12 if %MIN% LSS 8 if %MIN% GEQ 6 set IDX=cu126
 if %MAJ%==12 if %MIN% LSS 6 set IDX=cu121
 echo CUDA driver %CUDA% -^> torch index %IDX%
-uv pip install --python .venv torch torchvision --index-url https://download.pytorch.org/whl/%IDX%
+REM 순서 중요: 의존성 먼저, torch는 마지막에 인덱스 강제(PyPI가 cu130으로 덮는 사고 방지)
 uv pip install --python .venv -e .
+uv pip install --python .venv --reinstall torch torchvision --index-url https://download.pytorch.org/whl/%IDX%
 .venv\Scripts\python -c "import torch;print('torch',torch.__version__,'cuda',torch.cuda.is_available())"
