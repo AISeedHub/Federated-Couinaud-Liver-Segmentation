@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np, torch, pandas as pd
 from couinaudfl.model import build_model
 from couinaudfl.data import load_case, list_cases
-from couinaudfl.infer import predict_volume
+from couinaudfl.infer import predict_volume_auto_orient
 from couinaudfl.metrics import case_metrics, summarize
 
 
@@ -23,7 +23,7 @@ def main():
         img, lab, meta = load_case(cd); name = os.path.basename(cd); sp = meta["spacing"]
         pp = os.path.join(a.out, f"pred_{name}.npy")
         if os.path.exists(pp): pred = np.load(pp)
-        else: pred, _ = predict_volume(m, img, dev, amp=bool(a.amp)); np.save(pp, pred)
+        else: pred, _, _fl = predict_volume_auto_orient(m, img, dev, amp=bool(a.amp)); np.save(pp, pred)
         r8 += case_metrics(pred, lab, sp, name, seg8=True, with_hd=not a.no_hd); r9 += case_metrics(pred, lab, sp, name, seg8=False, with_hd=False)
         if (i + 1) % 10 == 0: log(f"  {i+1}/{len(cases)} 누적 8분절 Dice {summarize(r8)['dice_mean_segments']:.4f}")
     pd.DataFrame(r8).to_csv(os.path.join(a.out, "metrics_8seg.csv"), index=False); pd.DataFrame(r9).to_csv(os.path.join(a.out, "metrics_9seg.csv"), index=False)

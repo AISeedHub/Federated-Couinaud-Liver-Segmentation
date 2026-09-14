@@ -12,7 +12,7 @@ for _sig in ("SIGINT", "SIGBREAK"):
 from couinaudfl.model import build_model
 from couinaudfl.data import list_cases, kfold_split, load_case
 from couinaudfl.train import fit
-from couinaudfl.infer import predict_volume
+from couinaudfl.infer import predict_volume_auto_orient
 from couinaudfl.metrics import case_metrics, summarize
 
 ap = argparse.ArgumentParser(); ap.add_argument("--config", required=True); ap.add_argument("--data", required=True); ap.add_argument("--site", default=socket.gethostname())
@@ -41,7 +41,7 @@ def main():
         model.load_state_dict(torch.load(os.path.join(od, "best.pth"), map_location=dev)); model.eval(); rows = []; lrows = []
         with torch.no_grad():
             for cd in te:
-                img, lab, meta = load_case(cd); pred, _ = predict_volume(model, img, dev, amp=amp); sp = meta.get("spacing") or [4.0, 0.7, 0.7]
+                img, lab, meta = load_case(cd); pred, _, _fl = predict_volume_auto_orient(model, img, dev, amp=amp); sp = meta.get("spacing") or [4.0, 0.7, 0.7]
                 rows += case_metrics(pred, lab, [float(sp[0]), float(sp[1]), float(sp[2])], os.path.basename(cd))
                 lrows += lesion_overlap_rows(os.path.basename(cd), cd, lab, pred, [float(sp[0]), float(sp[1]), float(sp[2])])
                 os.makedirs(os.path.join(od, "pred"), exist_ok=True); import numpy as np

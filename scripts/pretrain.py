@@ -10,7 +10,7 @@ import numpy as np, torch
 from couinaudfl.model import build_model, load_ts_init, find_ts_checkpoint
 from couinaudfl.train import fit, validate
 from couinaudfl.data import load_case
-from couinaudfl.infer import predict_volume
+from couinaudfl.infer import predict_volume, predict_volume_auto_orient
 from couinaudfl.metrics import case_metrics, summarize
 from couinaudfl import splits as S
 
@@ -56,7 +56,7 @@ def main():
     for name, cases in tests.items():
         rows = []
         for rel in cases:
-            img, lab, meta = load_case(P(rel)); pred, _ = predict_volume(model, img, dev, amp=bool(a.amp))
+            img, lab, meta = load_case(P(rel)); pred, _, _fl = predict_volume_auto_orient(model, img, dev, amp=bool(a.amp))
             seg8 = int(meta.get("segments", 9)) == 8 or name.startswith("lee") or name.startswith("tian") or name.startswith("mr")
             if name == "crlm_liver":   # 분절 라벨 없음: 간(1)+잔여간(2) = 전체 간 vs 예측 분절 합집합
                 lab = (np.isin(lab, [1, 2])).astype(np.uint8); pred = (pred > 0).astype(np.uint8); seg8 = True

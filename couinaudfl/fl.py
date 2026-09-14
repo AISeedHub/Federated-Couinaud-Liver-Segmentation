@@ -16,7 +16,7 @@ from flwr.common import ndarrays_to_parameters, parameters_to_ndarrays, FitRes, 
 from flwr.server.strategy import FedAvg
 from .train import fit, validate
 from .data import load_case
-from .infer import predict_volume
+from .infer import predict_volume, predict_volume_auto_orient
 from .metrics import case_metrics, summarize
 
 METHODS = ["FedAvg", "FedProx", "FedAdam", "FedBN"]
@@ -79,7 +79,7 @@ class CouinaudClient(fl.client.NumPyClient):
         from .lesion import lesion_overlap_rows
         self.model.load_state_dict(self.last_global); self.model.eval(); rows = []; lrows = []
         for cd in self.test_cases:
-            img, lab, meta = load_case(cd); pred, _ = predict_volume(self.model, img, self.device, amp=self.amp)
+            img, lab, meta = load_case(cd); pred, _, _fl = predict_volume_auto_orient(self.model, img, self.device, amp=self.amp)
             sp = meta.get("spacing") or [4.0, 0.7, 0.7]
             rows += case_metrics(pred, lab, [float(sp[0]), float(sp[1]), float(sp[2])], os.path.basename(cd))
             lrows += lesion_overlap_rows(os.path.basename(cd), cd, lab, pred, [float(sp[0]), float(sp[1]), float(sp[2])])
