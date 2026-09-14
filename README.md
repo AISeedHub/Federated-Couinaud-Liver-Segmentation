@@ -1,4 +1,8 @@
-# CouinaudFL — Federated Nine-Segment Couinaud Liver Segmentation (v2)
+# Federated Learning for Automatic Segmentation of Nine Couinaud Liver Segments across Four Institutions: A Feasibility Study
+
+<p align="center">
+  <img src="assets/figure1.jpg" width="90%" alt="Federated learning pipeline">
+</p>
 
 복부 CT에서 Couinaud 간 9분절(I, II, III, IVa, IVb, V–VIII)을 자동 분할하는 다기관 연합학습 프레임워크.
 
@@ -13,7 +17,7 @@
 
 ### 사전 조건
 - NVIDIA 드라이버: `nvidia-smi` 우측 상단 **CUDA Version 12.1 이상** (13.x 포함). GPU 메모리 24 GB 이상.
-- 서버 `168.131.153.57`의 **9595(exp4c) / 9596(exp5c)** 포트로 나가는 연결 허용.
+- 연합학습 서버(주소는 참여 기관에 별도 전달)의 **9595(exp4c) / 9596(exp5c)** 포트로 나가는 연결 허용.
 - Python 별도 설치 불필요(uv가 3.12를 내려받음). Git이 없으면 GitHub에서 ZIP으로 받아 풀어도 된다.
 
 ### Windows (cmd 또는 PowerShell)
@@ -33,7 +37,7 @@ bash scripts/install.sh
 마지막 줄이 `torch 2.x.x+cuXXX cuda True <GPU명>` 이면 정상. `cuda False`면 드라이버가 낮거나 CPU 휠이 깔린 것 → 드라이버 업데이트 후 `.venv` 삭제하고 재설치.
 
 ### 사전학습 가중치 — 자동 다운로드
-첫 실행 시 `outputs/pretrain/best.pth`(~125 MB)가 없으면 `run_center`가 서버(`168.131.153.57:9598/weights`)에서 자동으로 받는다. 별도 조치 불필요.
+첫 실행 시 `outputs/pretrain/best.pth`(~125 MB)가 없으면 `run_center`가 서버(`SERVER_IP:9598/weights`)에서 자동으로 받는다. 별도 조치 불필요.
 망이 막혀 다운로드가 실패하면 서버에서 파일을 받아 그 경로에 수동 배치하면 된다.
 
 ---
@@ -158,7 +162,7 @@ REM 단일센터만 (fold 지정 가능)
 REM FL 클라이언트만 (서버와 같은 fold·방법론 순서여야 함)
 .venv\Scripts\python scripts\client.py --config configs\exp4c.yaml --data D:\data\liver --site A
 .venv\Scripts\python scripts\client.py --config configs\exp4c.yaml --data D:\data\liver --site A --folds 2 --methods FedAvg
-.venv\Scripts\python scripts\client.py --config configs\exp4c.yaml --data D:\data\liver --site A --server 168.131.153.57:9595
+.venv\Scripts\python scripts\client.py --config configs\exp4c.yaml --data D:\data\liver --site A --server SERVER_IP:9595
 ```
 Linux는 `.venv/bin/python` 으로 바꾸면 동일.
 
@@ -168,7 +172,7 @@ Linux는 `.venv/bin/python` 으로 바꾸면 동일.
 .venv\Scripts\python scripts\export_results.py --exp exp4c --site A --run run_20260903_101500
 .venv\Scripts\python scripts\upload_results.py --exp exp4c --site A --run run_20260903_101500
 ```
-`export_results.py`가 `outputs\exp4c\<run>\export_A\`(Case N 익명)를 만들고, `upload_results.py`가 그 폴더를 zip으로 묶어 서버 수집기(`168.131.153.57:9598`)로 보낸다. 전송이 막히면 `outputs\exp4c\<run>\export_A.zip`이 남으므로 그 파일만 수동 전달하면 된다.
+`export_results.py`가 `outputs\exp4c\<run>\export_A\`(Case N 익명)를 만들고, `upload_results.py`가 그 폴더를 zip으로 묶어 서버 수집기(`SERVER_IP:9598`)로 보낸다. 전송이 막히면 `outputs\exp4c\<run>\export_A.zip`이 남으므로 그 파일만 수동 전달하면 된다.
 카탈로그(`patient_catalog.csv`: 환자별 슬라이스 수·spacing·분절/간/병변 GT 부피·간 z범위·강도)는 `run_center` 시작 시 자동 생성되어 함께 내보내진다.
 실제 ID ↔ Case N 대응표는 `outputs\exp4c\client_A\_id_map_LOCAL_ONLY.json` 에만 남고 **센터 밖으로 보내지 않는다**(업로드 스크립트가 이 파일이 export 폴더에 있으면 전송을 거부한다).
 내보내기 내용: 클라이언트 run 폴더 **전체**(모든 로그 run_center/single/client/errors, fold 분할, DONE 마커, 학습 이력, 라운드 기록, test 지표 CSV, **모든 test 예측 라벨맵(npz)**, 환자 카탈로그, 단일센터 best.pth·FL global 가중치, 설정 yaml, 코드 버전)를 텍스트·파일명까지 Case N으로 치환해 복사한다(재개용 옵티마 상태 `*last.pth`만 제외). 이후 어떤 지표·그림도 센터 재방문 없이 재계산 가능.
@@ -181,7 +185,7 @@ Linux는 `.venv/bin/python` 으로 바꾸면 동일.
 
 ---
 
-## 4. 서버 실행 (이 서버, 168.131.153.57)
+## 4. 서버 실행 (연합학습 서버 머신)
 
 **한 번의 실행으로 전부** — 4센터 exp4c(9595) 완료 후 5센터 exp5c(9596) 순차 + 결과 수집 서버(9598) 내장:
 ```bash
@@ -267,7 +271,7 @@ Windows는 `.venv\Scripts\python`, Linux는 `.venv/bin/python`. `<run>`은 실�
 | `scripts/single.py` | `python scripts\single.py --config configs\exp4c.yaml --data D:\data\liver --site A --run <run> [--folds 0 1]` | 진짜 로컬 단일센터 5-fold |
 | `scripts/client.py` | `python scripts\client.py --config configs\exp4c.yaml --data D:\data\liver --site A --run <run> [--folds 0] [--methods FedAvg] [--server IP:PORT]` | FL 클라이언트 |
 | `scripts/export_results.py` | `python scripts\export_results.py --exp exp4c --site A --run <run>` | run 폴더 전체 익명 내보내기 |
-| `scripts/upload_results.py` | `python scripts\upload_results.py --exp exp4c --site A --run <run> [--url http://168.131.153.57:9598/upload]` | 서버로 zip 전송 |
+| `scripts/upload_results.py` | `python scripts\upload_results.py --exp exp4c --site A --run <run> [--url http://SERVER_IP:9598/upload]` | 서버로 zip 전송 |
 | `scripts/server.py` | `python scripts/server.py --config configs/exp4c.yaml configs/exp5c.yaml --run run_main [--folds 0] [--methods FedAvg] [--collect-port 9598]` | FL 서버(실험→fold→방법론 순차, 수집기 내장) |
 | `scripts/collect_server.py` | `python scripts/collect_server.py --port 9598 --dir outputs/collected` | 결과 수집 서버 |
 | `scripts/verify_run.py` | `python scripts/verify_run.py --config configs/rehearsal.yaml --sites A B --data-roots <A폴더> <B폴더> --run <run>` | 산출물 자동 검증 |
