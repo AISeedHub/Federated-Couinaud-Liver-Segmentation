@@ -5,7 +5,7 @@ description = "Federated learning for nine-segment Couinaud liver segmentation (
 requires-python = ">=3.10"
 # torch/torchvision은 의도적으로 제외: 각 머신의 CUDA에 맞춰 scripts/install.* 가 설치한다.
 dependencies = [
-  "numpy>=1.24",
+  "numpy>=1.24,<2",   # flwr 1.11이 NumPy 2 비호환(np.float_)
   "scipy>=1.10",
   "nibabel>=5.0",
   "pyyaml>=6.0",
