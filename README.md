@@ -60,6 +60,8 @@ case,spacing_y,spacing_x
 ```
 값은 원본 DICOM의 PixelSpacing(mm). z는 전처리 규약상 4 mm로 고정이라 적지 않는다. 환자 폴더에 `meta.json`(`{"spacing":[4.0, sy, sx]}`)이 있으면 그것이 우선한다.
 
+**센터 원본 엑셀 시트도 그대로 사용 가능**: 데이터 폴더에 `spacing.xlsx`(또는 xlsx 파일 1개)를 두면 자동 인식한다. 열: `ID, Resolution(512|1024), Pixel spacing, Slice thickeness, Incremental[, Date]`. ID는 문자열 그대로 정확히 폴더명과 일치해야 하며(선행 0·문자 접미 포함, 예 `01311111a1`), 면내 간격은 1024 매트릭스 ×2 보정, z는 Incremental→두께→4mm(빈칸) 순으로 채워 **환자별 z가 부피·HD95에 반영**된다.
+
 **v1에서 만든 센터별 부피 CSV(`volumes_per_patient.csv`: `patient_id, orig_matrix, pixel_spacing, …`)가 있으면 그대로 쓴다.** 데이터 루트에 그 파일명으로 두거나, 다른 위치면 환경변수로 지정:
 ```bat
 set COUINAUD_SPACING_CSV=D:\data\volumes_per_patient.csv
