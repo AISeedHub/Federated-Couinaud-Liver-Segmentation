@@ -1,9 +1,4 @@
-# Federated Learning for Automatic Segmentation of Nine Couinaud Liver Segments across Four Institutions: A Feasibility Study
-
-<p align="center">
-  <img src="assets/figure1.jpg" width="90%" alt="Federated learning pipeline">
-</p>
-
+# CouinaudFL — Federated Nine-Segment Couinaud Liver Segmentation (v2)
 
 복부 CT에서 Couinaud 간 9분절(I, II, III, IVa, IVb, V–VIII)을 자동 분할하는 다기관 연합학습 프레임워크.
 
@@ -23,28 +18,23 @@
 
 ### Windows (cmd 또는 PowerShell)
 ```bat
-git clone https://github.com/AISeedHub/Federated-Couinaud-Liver-Segmentation.git
-cd Federated-Couinaud-Liver-Segmentation
+git clone https://github.com/AISeedHub/CouinaudFL.git
+cd CouinaudFL
 scripts\install.bat
 ```
 PowerShell에서는 `.\scripts\install.bat` 처럼 앞에 `.\`를 붙인다(실행 정책 변경 불필요). 이후 모든 `.bat` 실행도 동일.
 ### Linux / DGX Spark
 ```bash
-git clone https://github.com/AISeedHub/Federated-Couinaud-Liver-Segmentation.git
-cd Federated-Couinaud-Liver-Segmentation
+git clone https://github.com/AISeedHub/CouinaudFL.git
+cd CouinaudFL
 bash scripts/install.sh
 ```
 설치 스크립트가 하는 일: uv 설치 → `.venv` 생성 → `nvidia-smi`의 CUDA 버전으로 torch 휠 인덱스 선택(cu121/cu126/cu128/cu130, ARM은 cu130) → 의존성 설치 → GPU 인식 출력.
 마지막 줄이 `torch 2.x.x+cuXXX cuda True <GPU명>` 이면 정상. `cuda False`면 드라이버가 낮거나 CPU 휠이 깔린 것 → 드라이버 업데이트 후 `.venv` 삭제하고 재설치.
 
-### 사전학습 가중치 배치
-서버에서 전달한 `best.pth`(~125 MB)를 **`outputs/pretrain/best.pth`** 에 둔다(폴더가 없으면 만든다). 설정 파일의 `init_weights`가 이 경로를 가리킨다.
-```
-CouinaudFL/
-└── outputs/
-    └── pretrain/
-        └── best.pth
-```
+### 사전학습 가중치 — 자동 다운로드
+첫 실행 시 `outputs/pretrain/best.pth`(~125 MB)가 없으면 `run_center`가 서버(`168.131.153.57:9598/weights`)에서 자동으로 받는다. 별도 조치 불필요.
+망이 막혀 다운로드가 실패하면 서버에서 파일을 받아 그 경로에 수동 배치하면 된다.
 
 ---
 
@@ -91,46 +81,43 @@ export COUINAUD_SPACING_CSV=/data/volumes_per_patient.csv
 
 센터별 실제 명령(전부 4센터 exp4c → 5센터 exp5c 순차; 전남대는 exp5c만):
 
-**Windows** — 순천향천안 A · 고려대안산 B · 강릉아산 C (cmd 또는 PowerShell, PowerShell은 앞에 `.\`)
+**Windows** — 순천향천안 A · 강릉아산 C (cmd 또는 PowerShell, PowerShell은 앞에 `.\`)
 ```bat
-cd C:\Federated-Couinaud-Liver-Segmentation
+cd C:\CouinaudFL
 scripts\run_center_seq.bat D:\data\liver A exp4c exp5c
 ```
-```bat
-scripts\run_center_seq.bat D:\data\liver B exp4c exp5c
-```
-```bat
-scripts\run_center_seq.bat D:\data\liver C exp4c exp5c
-```
-창을 닫지 말 것(닫으면 60초 후 재시작 로직도 함께 종료됨). 절전·화면 잠금은 스크립트가 해제한다.
-재부팅 등으로 중단됐을 때 **이어서** 하려면 run 이름을 환경변수로 주고 같은 명령을 다시 친다(완료분은 건너뜀):
+(C는 센터 코드만 교체.) 창을 닫지 말 것(닫으면 재시작 루프도 종료). 절전·화면 잠금은 스크립트가 해제한다.
+재부팅 후 이어서 하려면 run 이름을 환경변수로 주고 같은 명령:
 ```bat
 set RUN_NAME=run_20260903_101500      ← outputs\exp4c\LAST_RUN 파일 내용
 scripts\run_center_seq.bat D:\data\liver A exp4c exp5c
 ```
 
-**DGX Spark (Linux aarch64)** — 전남대 E, exp5c만
+**DGX Spark (Linux aarch64, CUDA 13)** — 고려대안산 B
 ```bash
-cd ~/Federated-Couinaud-Liver-Segmentation
-nohup bash scripts/run_center.sh exp5c /home/crex/fedlr/LiverSegmentation/merged E > /dev/null 2>&1 &
-tail -f outputs/exp5c/$(cat outputs/exp5c/LAST_RUN)/client_E/run_center.log
-```
-exp4c가 끝나 서버가 9596을 열 때까지 "연결 대기"를 반복하는 것이 정상이며, **며칠이 걸려도 무해하다**(30초마다 접속 시도 한 번, GPU·CPU 미사용). 미리 켜 두지 않고 exp4c가 끝날 즈음, 또는 그 이후에 켜도 된다 — 서버는 5개 센터가 모일 때까지 시작하지 않는다.
-재부팅에도 자동 복구하려면(선택):
-```bash
-crontab -e   # 아래 한 줄 추가
-@reboot cd ~/Federated-Couinaud-Liver-Segmentation && RUN_NAME=$(cat outputs/exp5c/LAST_RUN 2>/dev/null) bash scripts/run_center.sh exp5c /home/crex/fedlr/LiverSegmentation/merged E
+cd ~/CouinaudFL
+nohup bash scripts/run_center_seq.sh /home/crex/fedlr/LiverSegmentation/merged B exp4c exp5c > /dev/null 2>&1 &
+tail -f outputs/exp4c/$(cat outputs/exp4c/LAST_RUN)/client_B/run_center.log
 ```
 
-**Linux x86** — 분당서울대 D
+**Ubuntu (x86)** — 분당서울대 D
 ```bash
-cd ~/Federated-Couinaud-Liver-Segmentation
+cd ~/CouinaudFL
 nohup bash scripts/run_center_seq.sh /data/liver D exp4c exp5c > /dev/null 2>&1 &
 tail -f outputs/exp4c/$(cat outputs/exp4c/LAST_RUN)/client_D/run_center.log
 ```
-Linux에서 SSH 세션이 끊겨도 `nohup ... &`로 띄운 프로세스는 계속 돈다. 재부팅 후 이어서 하려면:
+
+**Ubuntu (x86)** — 전남대 E, exp5c만 (서버와 같은 학내망이라 방화벽 무관)
 ```bash
-RUN_NAME=$(cat outputs/exp4c/LAST_RUN) nohup bash scripts/run_center_seq.sh /data/liver D exp4c exp5c > /dev/null 2>&1 &
+cd ~/CouinaudFL
+nohup bash scripts/run_center.sh exp5c ~/e_center_mr E > /dev/null 2>&1 &
+tail -f outputs/exp5c/$(cat outputs/exp5c/LAST_RUN)/client_E/run_center.log
+```
+exp4c가 끝나 서버가 9596을 열 때까지 "연결 대기"를 반복하는 것이 정상이며, **며칠이 걸려도 무해하다**(30초마다 접속 시도 한 번, GPU·CPU 미사용). 미리 켜 두지 않고 exp4c가 끝날 즈음 켜도 된다.
+Linux에서 재부팅에도 자동 복구하려면(선택):
+```bash
+crontab -e   # 아래 한 줄 추가 (경로·코드는 센터에 맞게)
+@reboot cd ~/CouinaudFL && RUN_NAME=$(cat outputs/exp5c/LAST_RUN 2>/dev/null) bash scripts/run_center.sh exp5c ~/e_center_mr E
 ```
 
 단일 실험만 돌릴 때:
@@ -198,7 +185,7 @@ Linux는 `.venv/bin/python` 으로 바꾸면 동일.
 
 **한 번의 실행으로 전부** — 4센터 exp4c(9595) 완료 후 5센터 exp5c(9596) 순차 + 결과 수집 서버(9598) 내장:
 ```bash
-cd /home/dspserver/2025/jin/CouinaudFL   # 서버 작업본
+cd /home/dspserver/2025/jin/CouinaudFL
 nohup .venv/bin/python scripts/server.py --config configs/exp4c.yaml configs/exp5c.yaml --run run_main > outputs/server_run_main.out 2>&1 &
 ```
 센터 쪽은 `run_center_seq ... exp4c exp5c` 한 줄이므로 양쪽 모두 명령 하나씩이다. 순서: exp4c fold 0–4 × 4방법론 → 모두 끝나면 exp5c 서버가 열리고, 5개 센터가 접속하는 대로 시작.

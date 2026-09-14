@@ -35,14 +35,18 @@ def main():
         if C.get("init_weights"): sd = torch.load(C["init_weights"], map_location="cpu", weights_only=False); model.load_state_dict(sd.get("model", sd))
         log(f"=== Single fold {fold}: train {len(tr)} val {len(va)} test {len(te)} epochs {epochs}")
         r = fit(model, tr, va, od, dev, epochs=epochs, lr=C.get("lr", 0.01), amp=amp, num_workers=a.workers, val_every=C.get("local_epochs", 10), log=log)
-        model.load_state_dict(torch.load(os.path.join(od, "best.pth"), map_location=dev)); model.eval(); rows = []
+        from couinaudfl.lesion import lesion_overlap_rows
+        model.load_state_dict(torch.load(os.path.join(od, "best.pth"), map_location=dev)); model.eval(); rows = []; lrows = []
         with torch.no_grad():
             for cd in te:
                 img, lab, meta = load_case(cd); pred, _ = predict_volume(model, img, dev, amp=amp); sp = meta.get("spacing") or [4.0, 0.7, 0.7]
                 rows += case_metrics(pred, lab, [4.0, float(sp[1]), float(sp[2])], os.path.basename(cd))
+                lrows += lesion_overlap_rows(os.path.basename(cd), cd, lab, pred, [4.0, float(sp[1]), float(sp[2])])
                 os.makedirs(os.path.join(od, "pred"), exist_ok=True); import numpy as np
                 np.savez_compressed(os.path.join(od, "pred", f"{os.path.basename(cd)}.npz"), pred=pred)
-        pd.DataFrame(rows).to_csv(os.path.join(od, "test_metrics.csv"), index=False); s = summarize(rows)
+        pd.DataFrame(rows).to_csv(os.path.join(od, "test_metrics.csv"), index=False)
+        if lrows: pd.DataFrame(lrows).to_csv(os.path.join(od, "lesion_overlap.csv"), index=False)
+        s = summarize(rows)
         json.dump(s, open(os.path.join(od, "test_summary.json"), "w"), indent=1); log(f"fold {fold} Single test {json.dumps(s)}")
         open(done, "w").write(str(datetime.datetime.now()))
     log("단일센터 완료")

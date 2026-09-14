@@ -20,6 +20,17 @@ set LOG=outputs\%EXP%\%RUN%\client_%SITE%\run_center.log
 REM 실행 전 GPU 점검 (CPU 폴백 방지)
 .venv\Scripts\python -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)" 2>>%LOG%
 if errorlevel 1 (echo [오류] GPU를 잡지 못했습니다. nvidia-smi 확인 후 scripts\install.bat 재실행 ^(uv sync/uv run 금지^) & echo GPU FAIL >> %LOG% & exit /b 1)
+REM 사전학습 가중치 자동 수급
+for /f "tokens=2" %%w in ('findstr /b "init_weights:" configs\%EXP%.yaml') do set IW=%%w
+set IW=%IW:"=%
+for /f "tokens=2" %%u in ('findstr /b "upload_url:" configs\%EXP%.yaml') do set UURL=%%u
+set UURL=%UURL:"=%
+set UURL=%UURL:/upload=%
+if not "%IW%"=="" if not exist "%IW%" (
+  if not exist "%IW%\.." mkdir outputs\pretrain 2>nul
+  echo [가중치] %IW% 없음 - %UURL%/weights 다운로드 >> %LOG%
+  curl -fsSL -o "%IW%" "%UURL%/weights" || curl -fsSL -o "%IW%" "https://github.com/AISeedHub/Federated-Couinaud-Liver-Segmentation/releases/download/weights-v2.0/best.pth" || (echo [오류] 사전학습 가중치 다운로드 실패 - 수동 배치 필요 & exit /b 1)
+)
 echo [%date% %time%] start %EXP% %SITE% >> %LOG%
 :loop
 if exist outputs\%EXP%\%RUN%\client_%SITE%\STOP.txt (echo STOP.txt — exit >> %LOG% & goto end)

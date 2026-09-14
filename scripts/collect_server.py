@@ -26,6 +26,18 @@ def main():
             self.send_response(200); self.end_headers(); self.wfile.write(msg.encode())
 
         def do_GET(self):
+            if urlparse(self.path).path == "/weights":   # 사전학습 가중치 배포
+                wp = "outputs/pretrain/best.pth"
+                if os.path.exists(wp):
+                    self.send_response(200); self.send_header("Content-Type", "application/octet-stream")
+                    self.send_header("Content-Length", str(os.path.getsize(wp))); self.end_headers()
+                    with open(wp, "rb") as f:
+                        while True:
+                            b = f.read(1 << 20)
+                            if not b: break
+                            self.wfile.write(b)
+                else: self.send_response(404); self.end_headers(); self.wfile.write(b"weights not found")
+                return
             self.send_response(200); self.end_headers(); self.wfile.write(b"CouinaudFL collect server OK")
 
         def log_message(self, *args): pass

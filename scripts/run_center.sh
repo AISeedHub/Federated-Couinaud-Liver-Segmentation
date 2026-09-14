@@ -10,6 +10,15 @@ OUT=outputs/$EXP/$RUN/client_$SITE; mkdir -p "$OUT"; LOG=$OUT/run_center.log; ec
 if ! .venv/bin/python -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)" 2>>"$LOG"; then
   echo "[오류] GPU를 잡지 못했습니다. nvidia-smi의 CUDA 버전 확인 후 scripts/install.sh 재실행 (uv sync/uv run 사용 금지 — torch가 제거됨)" | tee -a "$LOG"; exit 1
 fi
+# 사전학습 가중치 자동 수급 (없으면 서버 9598에서 다운로드)
+IW=$(grep -E "^init_weights:" configs/$EXP.yaml | awk '{print $2}' | tr -d '"')
+UURL=$(grep -E "^upload_url:" configs/$EXP.yaml | awk '{print $2}' | tr -d '"' | sed 's|/upload$||')
+if [ -n "$IW" ] && [ ! -s "$IW" ] && [ -n "$UURL" ]; then
+  mkdir -p "$(dirname "$IW")"; echo "[가중치] $IW 없음 → $UURL/weights 다운로드" >> "$LOG"
+  curl -fsSL -o "$IW" "$UURL/weights" >> "$LOG" 2>&1 \
+    || curl -fsSL -o "$IW" "https://github.com/AISeedHub/Federated-Couinaud-Liver-Segmentation/releases/download/weights-v2.0/best.pth" >> "$LOG" 2>&1 \
+    || { echo "[오류] 사전학습 가중치 다운로드 실패(서버·GitHub 모두) — 수동으로 $IW 에 배치 필요" | tee -a "$LOG"; exit 1; }
+fi
 echo "[$(date)] start $EXP $SITE run=$RUN" >> "$LOG"
 while true; do
   [ -f "$OUT/STOP.txt" ] && { echo "STOP.txt — exit" >> "$LOG"; break; }

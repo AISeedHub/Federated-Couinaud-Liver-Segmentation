@@ -37,6 +37,17 @@ def main():
         zs = np.nonzero((lab > 0).any((1, 2)))[0]; r["liver_z0"] = int(zs[0]) if len(zs) else -1; r["liver_z1"] = int(zs[-1]) if len(zs) else -1
         r["liver_median_u8"] = float(np.median(img[lab > 0])) if (lab > 0).any() else float("nan"); r["image_mean_u8"] = float(img.mean())
         r["fold_test"] = fold_of.get(name, -1); rows.append(r)
+    # 병변 채널 매핑 우선순위: ① 데이터 폴더(센터 수정본) ② 레포 내장 configs/lesion_labels/<site>.json ③ 템플릿
+    import shutil
+    lj = os.path.join(a.data, "lesion_labels.json"); bj = os.path.join("configs", "lesion_labels", f"{a.site}.json")
+    if os.path.exists(lj):
+        shutil.copy(lj, os.path.join(root, "lesion_labels.json")); print(f"병변 매핑: 데이터 폴더 제공본 사용 ({lj})")
+    elif os.path.exists(bj):
+        shutil.copy(bj, os.path.join(root, "lesion_labels.json")); print(f"병변 매핑: 레포 내장 {a.site} 매핑 사용 ({bj})")
+    else:
+        print("병변 매핑: 없음 — 채널 번호로 기록(TEMPLATE 생성)")
+        json.dump({"_설명": "병변 채널(10–17) → 유형 매핑. 센터에서 채워 데이터 폴더에 lesion_labels.json 으로 저장", "10": "", "11": "", "12": "", "13": "", "14": "", "15": "", "16": "", "17": ""},
+                  open(os.path.join(root, "lesion_labels_TEMPLATE.json"), "w"), ensure_ascii=False, indent=1)
     df = pd.DataFrame(rows); df.to_csv(os.path.join(root, "patient_catalog.csv"), index=False)
     print(f"patient_catalog.csv: {len(df)}명 → {root}")
 

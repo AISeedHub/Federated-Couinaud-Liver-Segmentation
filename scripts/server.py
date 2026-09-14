@@ -30,8 +30,23 @@ def main():
     try:
         for cfg in a.config: run_experiment(cfg, a, run)
         if collect:   # 센터들의 최종 업로드는 서버 세션 종료 '후'에 오므로 수집기는 계속 대기 (outputs/STOP_SERVER.txt 로 종료)
-            print(f"모든 실험 완료 — 결과 수집 서버(:{a.collect_port})는 계속 대기합니다. 종료: outputs/STOP_SERVER.txt 생성", flush=True)
-            while not os.path.exists("outputs/STOP_SERVER.txt"): time.sleep(30)
+            import yaml as _y, subprocess as _sp
+            last = _y.safe_load(open(a.config[-1])); exp_l = last["experiment"]; need = int(last["min_clients"])
+            print(f"모든 실험 완료 — 수집기(:{a.collect_port}) 대기. {exp_l} 업로드 {need}개 센터 도착 시 병변 ROC 분석 자동 실행. 종료: outputs/STOP_SERVER.txt", flush=True)
+            analyzed = False
+            while not os.path.exists("outputs/STOP_SERVER.txt"):
+                croot = os.path.join("outputs", "collected", exp_l, run)
+                sites = [d for d in (os.listdir(croot) if os.path.isdir(croot) else []) if os.path.isdir(os.path.join(croot, d))]
+                if not analyzed and len(sites) >= need:
+                    time.sleep(60)   # 마지막 zip 해제 여유
+                    roots = [os.path.join("outputs", "collected", _y.safe_load(open(c))["experiment"], run) for c in a.config]
+                    outd = os.path.join("outputs", "analysis_lesion", run)
+                    r = _sp.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "analyze_lesion_roc.py"),
+                                 "--roots", *[x for x in roots if os.path.isdir(x)], "--out", outd], capture_output=True, text=True)
+                    print(f"[자동 분석] 병변 ROC → {outd} (exit {r.returncode})", flush=True)
+                    if r.returncode != 0: print(r.stderr[-500:], flush=True)
+                    analyzed = True
+                time.sleep(30)
     finally:
         if collect: collect.terminate()
 

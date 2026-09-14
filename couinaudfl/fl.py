@@ -76,14 +76,17 @@ class CouinaudClient(fl.client.NumPyClient):
     @torch.no_grad()
     def final_test(self, method):
         """서버에서 받은 글로벌 가중치(last_global)로 테스트 — 로컬 학습 상태가 아님을 보장."""
-        self.model.load_state_dict(self.last_global); self.model.eval(); rows = []
+        from .lesion import lesion_overlap_rows
+        self.model.load_state_dict(self.last_global); self.model.eval(); rows = []; lrows = []
         for cd in self.test_cases:
             img, lab, meta = load_case(cd); pred, _ = predict_volume(self.model, img, self.device, amp=self.amp)
             sp = meta.get("spacing") or [4.0, 0.7, 0.7]
             rows += case_metrics(pred, lab, [4.0, float(sp[1]), float(sp[2])], os.path.basename(cd))
+            lrows += lesion_overlap_rows(os.path.basename(cd), cd, lab, pred, [4.0, float(sp[1]), float(sp[2])])
             pdir = os.path.join(self.out, method, "pred"); os.makedirs(pdir, exist_ok=True)
             np.savez_compressed(os.path.join(pdir, f"{os.path.basename(cd)}.npz"), pred=pred)   # 라벨맵 원자료(추후 어떤 지표든 재계산)
         import pandas as pd; pd.DataFrame(rows).to_csv(os.path.join(self.out, method, "test_metrics.csv"), index=False)
+        if lrows: pd.DataFrame(lrows).to_csv(os.path.join(self.out, method, "lesion_overlap.csv"), index=False)
         torch.save(self.last_global, os.path.join(self.out, method, "global_final.pth"))
         s = summarize(rows); json.dump(s, open(os.path.join(self.out, method, "test_summary.json"), "w"), indent=1)
         return {"test_" + k: v for k, v in s.items() if not isinstance(v, dict)}

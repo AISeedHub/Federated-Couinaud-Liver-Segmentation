@@ -17,6 +17,7 @@ LEE_TEST50 = {1, 4, 9, 10, 11, 13, 15, 21, 27, 44, 50, 52, 53, 62, 66, 69, 71, 7
 MEDSEG_TASK08 = {1, 2, 4, 5, 7, 8, 10, 11, 13, 16, 18, 19, 20, 22, 26, 27, 29, 30, 31, 32, 39, 40, 42, 44, 49, 50, 51, 52, 53, 57,
                  58, 59, 61, 62, 65, 67, 68, 72, 75, 77, 78}   # MedSeg 50 → 고유 41 (복셀 해시 대응, 2026-09-02)
 TRAIN_SETS = ["01_msd08_tian", "02_msd08_nih", "03_lits_zhang", "04_ircadb_zhang"]
+CRLM_EXCLUDE = {"CRLM-CT-1075"}   # hepaticvessel_337(학습 풀)과 복셀 동일 영상(MSKCC 재수록) → CRLM 평가에서 제외 (2026-09-07 감사)
 
 
 def task08_id(case: str) -> int | None:
@@ -67,7 +68,7 @@ def make_pretrain_split(root: str, val_frac=0.1, seed=42) -> dict:
     return {"mode": "pretrain", "train": train, "val": val, "test_lee50_tian": lee,
             "test_lee50_nih": [x.replace("01_msd08_tian", "02_msd08_nih") for x in lee], "test_medseg": medseg,
             "test_mr": [f"06_ts_mr/{c}" for c in sorted(os.listdir(os.path.join(root, "06_ts_mr"))) if os.path.isdir(os.path.join(root, "06_ts_mr", c))],
-            "test_crlm": [f"07_crlm/{c}" for c in sorted(os.listdir(os.path.join(root, "07_crlm"))) if os.path.isdir(os.path.join(root, "07_crlm", c))],
+            "test_crlm": [f"07_crlm/{c}" for c in sorted(os.listdir(os.path.join(root, "07_crlm"))) if os.path.isdir(os.path.join(root, "07_crlm", c)) and c not in CRLM_EXCLUDE],
             "excluded": {"lee50": len(LEE_TEST50), "medseg_task08": len(MEDSEG_TASK08)}}
 
 
