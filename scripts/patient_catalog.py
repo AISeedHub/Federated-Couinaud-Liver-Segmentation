@@ -37,6 +37,17 @@ def main():
             r["lesion_total_ml"] = tot
         except Exception: r["lesion_total_ml"] = float("nan")
         zs = np.nonzero((lab > 0).any((1, 2)))[0]; r["liver_z0"] = int(zs[0]) if len(zs) else -1; r["liver_z1"] = int(zs[-1]) if len(zs) else -1
+        # ── 방향(orientation) QC: 규약 = z 두부→미부, y 전→후, x 우→좌. GT 해부학으로 3축 검사 ──
+        def _cent(m, ax):
+            idx = np.nonzero(m)
+            return float(np.mean(idx[ax])) if len(idx[0]) else float("nan")
+        liv = lab > 0
+        ok_x = _cent(liv, 2) < lab.shape[2] * 0.5 + 10          # 간은 환자 우측(영상 x 앞쪽)
+        s2, s6 = lab == 2, lab == 7                              # II(상부) vs VI(하부)
+        ok_z = (_cent(s2, 0) < _cent(s6, 0)) if (s2.any() and s6.any()) else True
+        s5, s7 = lab == 6, lab == 8                              # V(전방) vs VII(후방)
+        ok_y = (_cent(s5, 1) < _cent(s7, 1)) if (s5.any() and s7.any()) else True
+        r["orient_ok"] = bool(ok_x and ok_y and ok_z); r["orient_x"] = bool(ok_x); r["orient_y"] = bool(ok_y); r["orient_z"] = bool(ok_z)
         r["liver_median_u8"] = float(np.median(img[lab > 0])) if (lab > 0).any() else float("nan"); r["image_mean_u8"] = float(img.mean())
         r["fold_test"] = fold_of.get(name, -1); rows.append(r)
     # 병변 채널 매핑 우선순위: ① 데이터 폴더(센터 수정본) ② 레포 내장 configs/lesion_labels/<site>.json ③ 템플릿
@@ -53,7 +64,12 @@ def main():
         json.dump({"_설명": "병변 채널(10–17) → 유형 매핑. 센터에서 채워 데이터 폴더에 lesion_labels.json 으로 저장", "10": "", "11": "", "12": "", "13": "", "14": "", "15": "", "16": "", "17": ""},
                   open(os.path.join(root, "lesion_labels_TEMPLATE.json"), "w"), ensure_ascii=False, indent=1)
     df = pd.DataFrame(rows); df.to_csv(os.path.join(root, "patient_catalog.csv"), index=False)
-    print(f"patient_catalog.csv: {len(df)}명 → {root}")
+    bad = df[~df.orient_ok].case.tolist() if "orient_ok" in df else []
+    if bad:
+        msg = f"[경고] 방향(orientation) 규약 위반 의심 {len(bad)}명: {bad[:5]}{' …' if len(bad) > 5 else ''} — 해당 환자 npy의 축 방향(두부→미부/전→후/우→좌)을 확인하세요. 뒤집힌 입력은 분할이 무효화됩니다."
+        print(msg)
+        open(os.path.join(root, "ORIENTATION_WARNING.txt"), "w").write(msg + "\n" + "\n".join(df[~df.orient_ok].case.astype(str)))
+    print(f"patient_catalog.csv: {len(df)}명 → {root} | 방향 QC: 정상 {int(df.orient_ok.sum())}/{len(df)}")
 
 
 if __name__ == "__main__":
