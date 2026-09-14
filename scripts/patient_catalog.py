@@ -23,7 +23,7 @@ def main():
     rows = []
     for cd in cases:
         img, lab, meta = load_case(cd); name = os.path.basename(cd)
-        sp = meta.get("spacing") or meta.get("orig_spacing") or [4.0, 0.73046875, 0.73046875]; sz, sy, sx = 4.0, float(sp[1]), float(sp[2]); vox = sz * sy * sx / 1000.0
+        sp = meta.get("spacing") or meta.get("orig_spacing") or [4.0, 0.73046875, 0.73046875]; sz, sy, sx = float(sp[0]), float(sp[1]), float(sp[2]); vox = sz * sy * sx / 1000.0
         r = {"case": name, "n_slices": int(img.shape[0]), "spacing_z": sz, "spacing_y": sy, "spacing_x": sx, "spacing_source": meta.get("spacing_source", "?"), "voxel_ml": vox, "liver_ml": float((lab > 0).sum() * vox)}
         for c, n in enumerate(SEG_NAMES, start=1): r[f"seg{n}_ml"] = float((lab == c).sum() * vox)
         r["seg_present_count"] = int(sum(r[f"seg{n}_ml"] > 0 for n in SEG_NAMES))

@@ -40,8 +40,8 @@ def main():
         with torch.no_grad():
             for cd in te:
                 img, lab, meta = load_case(cd); pred, _ = predict_volume(model, img, dev, amp=amp); sp = meta.get("spacing") or [4.0, 0.7, 0.7]
-                rows += case_metrics(pred, lab, [4.0, float(sp[1]), float(sp[2])], os.path.basename(cd))
-                lrows += lesion_overlap_rows(os.path.basename(cd), cd, lab, pred, [4.0, float(sp[1]), float(sp[2])])
+                rows += case_metrics(pred, lab, [float(sp[0]), float(sp[1]), float(sp[2])], os.path.basename(cd))
+                lrows += lesion_overlap_rows(os.path.basename(cd), cd, lab, pred, [float(sp[0]), float(sp[1]), float(sp[2])])
                 os.makedirs(os.path.join(od, "pred"), exist_ok=True); import numpy as np
                 np.savez_compressed(os.path.join(od, "pred", f"{os.path.basename(cd)}.npz"), pred=pred)
         pd.DataFrame(rows).to_csv(os.path.join(od, "test_metrics.csv"), index=False)

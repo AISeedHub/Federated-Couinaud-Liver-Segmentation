@@ -81,8 +81,8 @@ class CouinaudClient(fl.client.NumPyClient):
         for cd in self.test_cases:
             img, lab, meta = load_case(cd); pred, _ = predict_volume(self.model, img, self.device, amp=self.amp)
             sp = meta.get("spacing") or [4.0, 0.7, 0.7]
-            rows += case_metrics(pred, lab, [4.0, float(sp[1]), float(sp[2])], os.path.basename(cd))
-            lrows += lesion_overlap_rows(os.path.basename(cd), cd, lab, pred, [4.0, float(sp[1]), float(sp[2])])
+            rows += case_metrics(pred, lab, [float(sp[0]), float(sp[1]), float(sp[2])], os.path.basename(cd))
+            lrows += lesion_overlap_rows(os.path.basename(cd), cd, lab, pred, [float(sp[0]), float(sp[1]), float(sp[2])])
             pdir = os.path.join(self.out, method, "pred"); os.makedirs(pdir, exist_ok=True)
             np.savez_compressed(os.path.join(pdir, f"{os.path.basename(cd)}.npz"), pred=pred)   # 라벨맵 원자료(추후 어떤 지표든 재계산)
         import pandas as pd; pd.DataFrame(rows).to_csv(os.path.join(self.out, method, "test_metrics.csv"), index=False)

@@ -29,24 +29,63 @@ _SPACING_CACHE: dict = {}
 SPACING_CSV = os.environ.get("COUINAUD_SPACING_CSV", "")   # 데이터 루트 밖의 CSV 경로를 쓸 때
 
 
+def _norm_col(c):  # 열 이름 정규화 (Resolution (512, 1024) → resolution 등)
+    c = str(c).strip().lower()
+    for key, names in {"id": ["id", "case", "patient_id"], "resolution": ["resolution"], "pixel": ["pixel spacing", "pixel_spacing", "pixelspacing"],
+                       "thick": ["slice thickeness", "slice thickness", "thickness"], "incr": ["incremental", "increment"]}.items():
+        if any(c.startswith(n) for n in names): return key
+    return c
+
+
+def _rows_from_xlsx(path):
+    import pandas as pd
+    df = pd.read_excel(path, dtype=str)   # ID 선행 0·문자 보존
+    df.columns = [_norm_col(c) for c in df.columns]
+    return df.to_dict("records")
+
+
 def _spacing_table(root: str) -> dict:
-    """환자별 면내 spacing 표 → {case: [4.0, sy, sx]}.
-    파일: $COUINAUD_SPACING_CSV 또는 <data>/spacing.csv 또는 <data>/volumes_per_patient.csv(v1 형식).
-    지원 열: (a) case|patient_id, spacing_y, spacing_x  (b) v1: patient_id, orig_matrix, pixel_spacing → 512 기준 = pixel_spacing × orig_matrix / 512."""
+    """환자별 spacing 표 → {case: [z, s, s]} (512 기준 면내 s, 환자별 z).
+    파일 탐색: $COUINAUD_SPACING_CSV → <data>/spacing.(xlsx|csv) → <data>/volumes_per_patient.csv(v1) → <data>/*.xlsx 1개.
+    xlsx 열(센터 시트 원형): Matching, ID, Resolution(512|1024), Pixel spacing, Slice thickeness, Incremental[, Date]
+      · 면내 s = Pixel spacing × Resolution/512 (1024 매트릭스 ×2 보정)
+      · z = Incremental → 없으면 Slice thickness → 없으면 4.0 (강릉 빈칸 규칙)
+      · ID는 문자열 그대로 매칭(선행 0·문자 보존), 폴더명과 정확 일치 우선 + 숫자화 보조 매칭"""
     if root in _SPACING_CACHE: return _SPACING_CACHE[root]
+    cands = [SPACING_CSV, os.path.join(root, "spacing.xlsx"), os.path.join(root, "spacing.csv"), os.path.join(root, "volumes_per_patient.csv")]
+    import glob as _g
+    xs = [p for p in _g.glob(os.path.join(root, "*.xlsx")) if not os.path.basename(p).startswith("~")]
+    if len(xs) == 1: cands.append(xs[0])
     tbl = {}
-    for p in [SPACING_CSV, os.path.join(root, "spacing.csv"), os.path.join(root, "volumes_per_patient.csv")]:
+    for p in cands:
         if not p or not os.path.exists(p): continue
-        import csv
-        for r in csv.DictReader(open(p, encoding="utf-8-sig")):
-            k = str(r.get("case") or r.get("patient_id") or "").strip()
-            if not k or k in tbl: continue
+        rows = []
+        if p.lower().endswith(".xlsx"):
+            try: rows = _rows_from_xlsx(p)
+            except Exception: continue
+        else:
+            import csv
+            rows = [{ _norm_col(k): v for k, v in r.items()} for r in csv.DictReader(open(p, encoding="utf-8-sig"))]
+        for r in rows:
+            k = str(r.get("id") or "").strip()
+            if not k or k.lower() == "nan" or k in tbl: continue
             try:
-                if "spacing_y" in r and r["spacing_y"]: tbl[k] = [4.0, float(r["spacing_y"]), float(r["spacing_x"])]
-                elif "pixel_spacing" in r and r["pixel_spacing"]:
-                    f = float(r.get("orig_matrix") or 512) / 512.0; tbl[k] = [4.0, float(r["pixel_spacing"]) * f, float(r["pixel_spacing"]) * f]
-            except (KeyError, ValueError): continue
+                def num(key):
+                    v = r.get(key)
+                    v = "" if v is None else str(v).strip()
+                    return float(v) if v and v.lower() != "nan" else None
+                if r.get("spacing_y"):   # 단순 csv 형식
+                    tbl[k] = [num("spacing_z") or 4.0, float(r["spacing_y"]), float(r["spacing_x"])]; continue
+                px = num("pixel") if "pixel" in r else num("pixel_spacing")
+                if px is None: continue
+                res = num("resolution") or num("orig_matrix") or 512.0
+                s = px * res / 512.0
+                z = num("incr") or num("thick") or 4.0
+                tbl[k] = [z, s, s]
+            except (KeyError, ValueError, TypeError): continue
         if tbl: break
+    # 주의: ID는 문자열 '정확 일치'만 사용 — 숫자부 동일·접미문자(예 …a1)로 구별되는 환자가 존재하므로
+    # 선행 0 제거 등 근사 매칭은 오배정 위험이 있어 하지 않는다. 미매칭은 spacing_source=default로 드러남.
     _SPACING_CACHE[root] = tbl; return tbl
 
 
@@ -68,8 +107,8 @@ def load_case(case_dir: str):
     meta = json.load(open(mp)) if os.path.exists(mp) else {}
     if "spacing" not in meta:   # 부피(mL)용 spacing: ① 환자폴더 meta.json ② 데이터 루트 spacing.csv ③ 기본값(분당 0.73mm)
         sp = _spacing_table(os.path.dirname(case_dir.rstrip("/"))).get(os.path.basename(case_dir.rstrip("/")))
-        if sp is not None: meta["spacing"] = sp; meta["spacing_source"] = "spacing.csv"
-        elif "orig_spacing" in meta: meta["spacing"] = [4.0, float(meta["orig_spacing"][1]), float(meta["orig_spacing"][2])]; meta["spacing_source"] = "meta.orig_spacing"
+        if sp is not None: meta["spacing"] = [float(sp[0]), float(sp[1]), float(sp[2])]; meta["spacing_source"] = "spacing_table"
+        elif "orig_spacing" in meta: meta["spacing"] = [4.0, float(meta["orig_spacing"][1]), float(meta["orig_spacing"][2])]; meta["spacing_source"] = "meta.orig_spacing"   # 공용 전처리본은 z=4mm 리샘플 확정
         else: meta["spacing"] = DEFAULT_SPACING; meta["spacing_source"] = "default"
     else: meta.setdefault("spacing_source", "meta.json")
     lp = _label_path(case_dir)

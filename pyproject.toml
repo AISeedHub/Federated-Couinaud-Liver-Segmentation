@@ -15,6 +15,7 @@ dependencies = [
   "flwr>=1.11,<1.12",
   "dynamic-network-architectures>=0.3",
   "tqdm>=4.65",
+  "openpyxl>=3.1",
 ]
 
 [build-system]
