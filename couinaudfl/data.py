@@ -26,7 +26,14 @@ DEFAULT_SPACING = [4.0, 0.73046875, 0.73046875]   # z 4mm 고정, 면내는 분�
 _SPACING_CACHE: dict = {}
 
 
-SPACING_CSV = os.environ.get("COUINAUD_SPACING_CSV", "")   # 데이터 루트 밖의 CSV 경로를 쓸 때
+SPACING_CSV = os.environ.get("COUINAUD_SPACING_CSV", "")   # 데이터 루트 밖의 파일을 쓸 때(예비)
+
+
+def set_spacing_file(path: str):
+    """--spacing-file 인자용: 이후 모든 load_case가 이 파일(csv/xlsx)을 최우선으로 사용."""
+    global SPACING_CSV
+    SPACING_CSV = path or SPACING_CSV
+    _SPACING_CACHE.clear()
 
 
 def _norm_col(c):  # 열 이름 정규화 (Resolution (512, 1024) → resolution 등)
@@ -73,15 +80,20 @@ def _spacing_table(root: str) -> dict:
                 def num(key):
                     v = r.get(key)
                     v = "" if v is None else str(v).strip()
-                    return float(v) if v and v.lower() != "nan" else None
+                    if not v or v.lower() == "nan": return None
+                    try: return float(v)
+                    except ValueError: return None   # '?', '100W116 (...)' 등 비수치 → 결측
                 if r.get("spacing_y"):   # 단순 csv 형식
                     tbl[k] = [num("spacing_z") or 4.0, float(r["spacing_y"]), float(r["spacing_x"])]; continue
                 px = num("pixel") if "pixel" in r else num("pixel_spacing")
-                if px is None: continue
                 res = num("resolution") or num("orig_matrix") or 512.0
-                s = px * res / 512.0
+                sp_in = (px * res / 512.0) if px is not None else None
+                if sp_in is not None and not (0.3 <= sp_in <= 1.5): sp_in = None   # '2', 문자열 등 비정상 → 결측 처리
                 z = num("incr") or num("thick") or 4.0
-                tbl[k] = [z, s, s]
+                if not (1.0 <= z <= 10.0): z = 4.0
+                if sp_in is None and z == 4.0 and (px is not None):   # 면내 무효 + z 기본 → 완전 무효로 보되 z 정보는 이미 반영됨
+                    pass
+                tbl[k] = [z, sp_in if sp_in is not None else -1.0, sp_in if sp_in is not None else -1.0]
             except (KeyError, ValueError, TypeError): continue
         if tbl: break
     # 주의: ID는 문자열 '정확 일치'만 사용 — 숫자부 동일·접미문자(예 …a1)로 구별되는 환자가 존재하므로
@@ -107,7 +119,10 @@ def load_case(case_dir: str):
     meta = json.load(open(mp)) if os.path.exists(mp) else {}
     if "spacing" not in meta:   # 부피(mL)용 spacing: ① 환자폴더 meta.json ② 데이터 루트 spacing.csv ③ 기본값(분당 0.73mm)
         sp = _spacing_table(os.path.dirname(case_dir.rstrip("/"))).get(os.path.basename(case_dir.rstrip("/")))
-        if sp is not None: meta["spacing"] = [float(sp[0]), float(sp[1]), float(sp[2])]; meta["spacing_source"] = "spacing_table"
+        if sp is not None and sp[1] > 0:
+            meta["spacing"] = [float(sp[0]), float(sp[1]), float(sp[2])]; meta["spacing_source"] = "spacing_table"
+        elif sp is not None:   # 시트에 있으나 면내 값이 무효(예: '2', 문자열) → z만 시트값, 면내는 기본값
+            meta["spacing"] = [float(sp[0]), DEFAULT_SPACING[1], DEFAULT_SPACING[2]]; meta["spacing_source"] = "table_invalid_inplane"
         elif "orig_spacing" in meta: meta["spacing"] = [4.0, float(meta["orig_spacing"][1]), float(meta["orig_spacing"][2])]; meta["spacing_source"] = "meta.orig_spacing"   # 공용 전처리본은 z=4mm 리샘플 확정
         else: meta["spacing"] = DEFAULT_SPACING; meta["spacing_source"] = "default"
     else: meta.setdefault("spacing_source", "meta.json")
