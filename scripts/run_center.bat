@@ -4,6 +4,8 @@ REM 사용: run_center.bat <실험> <데이터폴더> <센터코드> [run이름|
 REM 실행마다 outputs\<실험>\<run>\ 에 별도 저장(기본 run = 시작 시각). 이어서 하려면 같은 run 이름을 4번째 인자로.
 REM 종료: outputs\<실험>\client_<센터>\STOP.txt 생성(현 세션 후 정상 종료). 재실행 시 완료된 fold/method는 건너뜀.
 setlocal
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
 cd /d "%~dp0\.."
 if "%~3"=="" (echo usage: run_center.bat exp4c D:\data\liver A & exit /b 1)
 set EXP=%~1& set DATA=%~2& set SITE=%~3& set RUN=%~4

@@ -13,7 +13,7 @@ import yaml, torch, pandas as pd, numpy as np
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--config", required=True); ap.add_argument("--sites", nargs="+", required=True); ap.add_argument("--data-roots", nargs="+", required=True); ap.add_argument("--run", required=True)
-    a = ap.parse_args(); C = yaml.safe_load(open(a.config)); exp = C["experiment"]; out = C.get("output_dir", "outputs"); folds = C["folds"]; methods = C["methods"]
+    a = ap.parse_args(); C = yaml.safe_load(open(a.config, encoding="utf-8")); exp = C["experiment"]; out = C.get("output_dir", "outputs"); folds = C["folds"]; methods = C["methods"]
     fails = []; ok = lambda cond, msg: (None if cond else fails.append(msg))
     srv = os.path.join(out, exp, a.run, "server")
     for f in folds:

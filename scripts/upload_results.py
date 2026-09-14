@@ -15,7 +15,7 @@ def main():
         cfg = f"configs/{a.exp}.yaml"; url = None
         if os.path.exists(cfg):
             for line in open(cfg, encoding="utf-8"):
-                if line.startswith("upload_url:"): url = line.split(":", 1)[1].strip().strip('"').strip("'")
+                if line.startswith("upload_url:"): url = line.split(":", 1)[1].split("#", 1)[0].strip().strip('"').strip("'")
         if not url: print("upload_url 미설정 — configs/<exp>.yaml의 SERVER_IP를 실제 주소로 교체하세요"); sys.exit(2)
         a.url = url
     ex = os.path.join(a.out, a.exp, a.run, f"export_{a.site}")

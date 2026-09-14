@@ -31,7 +31,7 @@ def main():
         for cfg in a.config: run_experiment(cfg, a, run)
         if collect:   # 센터들의 최종 업로드는 서버 세션 종료 '후'에 오므로 수집기는 계속 대기 (outputs/STOP_SERVER.txt 로 종료)
             import yaml as _y, subprocess as _sp
-            last = _y.safe_load(open(a.config[-1])); exp_l = last["experiment"]; need = int(last["min_clients"])
+            last = _y.safe_load(open(a.config[-1], encoding="utf-8")); exp_l = last["experiment"]; need = int(last["min_clients"])
             print(f"모든 실험 완료 — 수집기(:{a.collect_port}) 대기. {exp_l} 업로드 {need}개 센터 도착 시 병변 ROC 분석 자동 실행. 종료: outputs/STOP_SERVER.txt", flush=True)
             analyzed = False
             while not os.path.exists("outputs/STOP_SERVER.txt"):
@@ -39,7 +39,7 @@ def main():
                 sites = [d for d in (os.listdir(croot) if os.path.isdir(croot) else []) if os.path.isdir(os.path.join(croot, d))]
                 if not analyzed and len(sites) >= need:
                     time.sleep(60)   # 마지막 zip 해제 여유
-                    roots = [os.path.join("outputs", "collected", _y.safe_load(open(c))["experiment"], run) for c in a.config]
+                    roots = [os.path.join("outputs", "collected", _y.safe_load(open(c, encoding="utf-8"))["experiment"], run) for c in a.config]
                     outd = os.path.join("outputs", "analysis_lesion", run)
                     r = _sp.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "analyze_lesion_roc.py"),
                                  "--roots", *[x for x in roots if os.path.isdir(x)], "--out", outd], capture_output=True, text=True)
@@ -52,7 +52,7 @@ def main():
 
 
 def run_experiment(cfg_path, a, run):
-    C = yaml.safe_load(open(cfg_path)); folds = a.folds if a.folds is not None else C.get("folds", [0, 1, 2, 3, 4]); methods = a.methods or C.get("methods", METHODS)
+    C = yaml.safe_load(open(cfg_path, encoding="utf-8")); folds = a.folds if a.folds is not None else C.get("folds", [0, 1, 2, 3, 4]); methods = a.methods or C.get("methods", METHODS)
     out = os.path.join(C.get("output_dir", "outputs"), C["experiment"], run, "server"); os.makedirs(out, exist_ok=True)
     logf = open(os.path.join(out, "server.log"), "a")
     def log(s): print(s, flush=True); logf.write(f"{datetime.datetime.now():%m-%d %H:%M:%S} {s}\n"); logf.flush()

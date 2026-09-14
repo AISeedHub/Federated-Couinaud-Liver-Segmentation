@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""환자 카탈로그 — 센터 전 환자의 메타데이터·GT 부피를 한 번에 기록(추후 재방문 불필요).
+r"""환자 카탈로그 — 센터 전 환자의 메타데이터·GT 부피를 한 번에 기록(추후 재방문 불필요).
 
   python scripts/patient_catalog.py --data D:\data\liver --exp exp4c --site A
 → outputs/<exp>/client_<site>/patient_catalog.csv  (행 = 환자; 실제 ID 포함, 내보내기 시 Case N으로 치환)
@@ -15,7 +15,7 @@ from couinaudfl.data import list_cases, load_case, kfold_split, SEG_NAMES
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--data", required=True); ap.add_argument("--exp", required=True); ap.add_argument("--site", default=socket.gethostname())
     ap.add_argument("--config", default=None); ap.add_argument("--out", default="outputs"); ap.add_argument("--run", required=True); ap.add_argument("--spacing-file", default=None, help="환자별 spacing 표(csv/xlsx) 경로"); ap.add_argument("--lesion-labels", default=None, help="병변 채널 매핑 json 경로(최우선)"); a = ap.parse_args()
-    C = yaml.safe_load(open(a.config or f"configs/{a.exp}.yaml")); root = os.path.join(a.out, a.exp, a.run, f"client_{a.site}"); os.makedirs(root, exist_ok=True)
+    C = yaml.safe_load(open(a.config or f"configs/{a.exp}.yaml", encoding="utf-8")); root = os.path.join(a.out, a.exp, a.run, f"client_{a.site}"); os.makedirs(root, exist_ok=True)
     from couinaudfl.data import set_spacing_file
     if a.spacing_file: set_spacing_file(a.spacing_file)
     cases = list_cases(a.data); fold_of = {}

@@ -19,7 +19,7 @@ ap = argparse.ArgumentParser(); ap.add_argument("--config", required=True); ap.a
 
 def main():
     ap.add_argument("--folds", type=int, nargs="*", default=None); ap.add_argument("--run", default=None, help="실행 이름(기본: 현재 시각). 같은 이름으로 재실행하면 이어서 함"); ap.add_argument("--workers", type=int, default=4); ap.add_argument("--spacing-file", default=None, help="환자별 spacing 표(csv/xlsx) 경로"); a = ap.parse_args()
-    C = yaml.safe_load(open(a.config)); folds = a.folds if a.folds is not None else C.get("folds", [0, 1, 2, 3, 4])
+    C = yaml.safe_load(open(a.config, encoding="utf-8")); folds = a.folds if a.folds is not None else C.get("folds", [0, 1, 2, 3, 4])
     from couinaudfl.data import set_spacing_file
     if a.spacing_file: set_spacing_file(a.spacing_file)
     run = a.run or datetime.datetime.now().strftime("run_%Y%m%d_%H%M%S"); root = os.path.join(C.get("output_dir", "outputs"), C["experiment"], run, f"client_{a.site}"); os.makedirs(root, exist_ok=True)

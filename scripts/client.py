@@ -26,7 +26,7 @@ ap.add_argument("--folds", type=int, nargs="*", default=None); ap.add_argument("
 
 def main():
     ap.add_argument("--server", default=None, help="override server_address"); ap.add_argument("--spacing-file", default=None, help="환자별 spacing 표(csv/xlsx) 경로"); a = ap.parse_args()
-    C = yaml.safe_load(open(a.config)); folds = a.folds if a.folds is not None else C.get("folds", [0, 1, 2, 3, 4]); methods = a.methods or C.get("methods", METHODS)
+    C = yaml.safe_load(open(a.config, encoding="utf-8")); folds = a.folds if a.folds is not None else C.get("folds", [0, 1, 2, 3, 4]); methods = a.methods or C.get("methods", METHODS)
     from couinaudfl.data import set_spacing_file
     if a.spacing_file: set_spacing_file(a.spacing_file)
     server = a.server or C["client_server_address"]; run = a.run or datetime.datetime.now().strftime("run_%Y%m%d_%H%M%S"); root = os.path.join(C.get("output_dir", "outputs"), C["experiment"], run, f"client_{a.site}"); os.makedirs(root, exist_ok=True)
