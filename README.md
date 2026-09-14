@@ -1,8 +1,4 @@
-# Federated Learning for Automatic Segmentation of Nine Couinaud Liver Segments across Four Institutions: A Feasibility Study
-
-<p align="center">
-  <img src="assets/figure1.jpg" width="90%" alt="Federated learning pipeline">
-</p>
+# CouinaudFL — Federated Nine-Segment Couinaud Liver Segmentation (v2)
 
 복부 CT에서 Couinaud 간 9분절(I, II, III, IVa, IVb, V–VIII)을 자동 분할하는 다기관 연합학습 프레임워크.
 
@@ -89,7 +85,17 @@ spacing 파일을 알려주는 방법(우선순위 순):
 ### 3-1. 한 줄 실행 (권장)
 단일센터 5-fold → FL 클라이언트(fold 0–4 × 방법론 4종) 순으로 **자동** 진행. 서버 세션 전환·재접속·재시작을 스스로 처리한다.
 
-센터별 실제 명령 — **데이터 경로·spacing 파일·레이블맵을 명령에 모두 명시**한다(파일 인자는 순서 무관 자동 판별: `.json`=레이블맵, 그 외 실존 파일=spacing; 생략하면 데이터 폴더 안의 파일/레포 내장 매핑을 사용). 전부 4센터 exp4c → 5센터 exp5c 순차, 전남대는 exp5c만.
+**인자 규격** (Windows `.bat`도 동일):
+```
+run_center_seq.sh <데이터폴더> <센터코드> [spacing파일] [레이블맵.json] <실험1> [실험2 ...]
+```
+- **1번 = 데이터 폴더, 2번 = 센터 코드**(A 순천향천안 · B 고려대안산 · C 강릉아산 · D 분당서울대 · E 전남대). 이 둘은 **필수이며 순서 고정** — 센터 코드를 빼먹으면 즉시 `Exit 1`로 종료된다.
+- 3번째부터는 순서 무관 자동 판별: `configs/<이름>.yaml`이 존재하면 실험 이름, `.json` 파일이면 레이블맵, 그 외 실존 파일이면 spacing. 어느 것에도 해당 안 되는 인자(오타·없는 파일)가 있으면 시작하지 않고 종료한다.
+- spacing·레이블맵을 생략하면 데이터 폴더 안의 파일 → 레포 내장 센터 매핑(`configs/lesion_labels/<코드>.json`) 순으로 자동 사용.
+- **경로에 공백이 있으면 반드시 따옴표로 감싼다**(예: `"…/Federated Learning …/configs/lesion_labels/D.json"`). 레포 폴더 안에서 실행하므로 레포 내부 파일은 `configs/lesion_labels/D.json`처럼 상대경로로 쓰는 것이 안전하다.
+- 실패 원인을 보려면 로그를 `/dev/null` 대신 파일로 남긴다: `> seq.out 2>&1 &` 후 `cat seq.out`.
+
+센터별 실제 명령 — **데이터 경로·spacing 파일·레이블맵을 명령에 모두 명시**한다. 전부 4센터 exp4c → 5센터 exp5c 순차, 전남대는 exp5c만.
 
 **Windows** — 순천향천안 A · 강릉아산 C (PowerShell은 앞에 `.\`)
 ```bat
@@ -110,7 +116,7 @@ tail -f outputs/exp4c/$(cat outputs/exp4c/LAST_RUN)/client_B/run_center.log
 **Ubuntu (x86)** — 분당서울대 D
 ```bash
 cd ~/Federated-Couinaud-Liver-Segmentation
-nohup bash scripts/run_center_seq.sh /data/liver D /data/liver/volumes_per_patient.csv /data/liver/lesion_labels.json exp4c exp5c > /dev/null 2>&1 &
+nohup bash scripts/run_center_seq.sh /data/liver D /data/liver/volumes_per_patient.csv configs/lesion_labels/D.json exp4c exp5c > seq.out 2>&1 &
 tail -f outputs/exp4c/$(cat outputs/exp4c/LAST_RUN)/client_D/run_center.log
 ```
 
@@ -141,6 +147,12 @@ scripts\run_center_seq.bat D:\data\liver A exp4c exp5c
 ```bash
 nohup bash scripts/run_center_seq.sh /data/merged A exp4c exp5c > /dev/null 2>&1 &
 ```
+**사전 점검(pretest)**: 본 실험 전에 축소 설정(`exp4c_pre`/`exp5c_pre`, 5라운드×2에폭)으로 왕복 확인만 할 때는 실험 이름만 바꾸면 된다. 예 (분당 D):
+```bash
+nohup bash scripts/run_center_seq.sh /data/liver D /data/liver/volumes_per_patient.csv configs/lesion_labels/D.json exp4c_pre exp5c_pre > seq_pre.out 2>&1 &
+```
+결과는 `outputs/exp4c_pre/` 등 별도 폴더에 남으므로 삭제해도 본 실험(exp4c/exp5c)에 영향 없다.
+
 exp4c가 끝나면 자동으로 exp5c(포트 9596)에 접속한다. exp5c는 `run_single: 0`이라 단일센터 재학습 없이 FL만 수행(전남대 E는 exp5c만 실행하며 필요 시 1로 둔다). 서버는 두 실험 서버를 동시에 띄워 두면 5센터가 모두 exp4c를 마치고 접속하는 시점에 exp5c가 자연히 시작된다.
 
 동작 순서
@@ -265,7 +277,7 @@ Windows는 `.venv\Scripts\python`, Linux는 `.venv/bin/python`. `<run>`은 실�
 |---|---|---|
 | `scripts/install.bat` / `install.sh` | `scripts\install.bat` | 환경 설치(CUDA 자동 감지) |
 | `scripts/run_center.bat` / `.sh` | `scripts\run_center.bat exp4c D:\data\liver A [run]` | 센터 원커맨드(카탈로그→단일 5-fold→업로드→FL→업로드) |
-| `scripts/run_center_seq.bat` / `.sh` | `scripts\run_center_seq.bat D:\data\liver A exp4c exp5c` | 여러 실험 순차 |
+| `scripts/run_center_seq.bat` / `.sh` | `scripts\run_center_seq.bat D:\data\liver A D:\meta\spacing.xlsx configs\lesion_labels\A.json exp4c exp5c` | 여러 실험 순차 — `<데이터> <센터코드> [spacing] [레이블맵.json] 실험…` |
 | `scripts/patient_catalog.py` | `python scripts\patient_catalog.py --data D:\data\liver --exp exp4c --site A --run <run>` | 환자 메타·GT 부피 카탈로그 |
 | `scripts/single.py` | `python scripts\single.py --config configs\exp4c.yaml --data D:\data\liver --site A --run <run> [--folds 0 1]` | 진짜 로컬 단일센터 5-fold |
 | `scripts/client.py` | `python scripts\client.py --config configs\exp4c.yaml --data D:\data\liver --site A --run <run> [--folds 0] [--methods FedAvg] [--server IP:PORT]` | FL 클라이언트 |
