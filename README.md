@@ -62,14 +62,18 @@ case,spacing_y,spacing_x
 
 **센터 원본 엑셀 시트도 그대로 사용 가능**: 데이터 폴더에 `spacing.xlsx`(또는 xlsx 파일 1개)를 두면 자동 인식한다. 열: `ID, Resolution(512|1024), Pixel spacing, Slice thickeness, Incremental[, Date]`. ID는 문자열 그대로 정확히 폴더명과 일치해야 하며(선행 0·문자 접미 포함, 예 `01311111a1`), 면내 간격은 1024 매트릭스 ×2 보정, z는 Incremental→두께→4mm(빈칸) 순으로 채워 **환자별 z가 부피·HD95에 반영**된다.
 
-**v1에서 만든 센터별 부피 CSV(`volumes_per_patient.csv`: `patient_id, orig_matrix, pixel_spacing, …`)가 있으면 그대로 쓴다.** 데이터 루트에 그 파일명으로 두거나, 다른 위치면 환경변수로 지정:
+**v1에서 만든 센터별 부피 CSV(`volumes_per_patient.csv`: `patient_id, orig_matrix, pixel_spacing, …`)가 있으면 그대로 쓴다.** 512 기준 간격 = `pixel_spacing × orig_matrix / 512` 로 자동 환산(예: 1024 매트릭스 0.28125 → 0.5625 mm).
+
+spacing 파일을 알려주는 방법(우선순위 순):
+1. **데이터 폴더에 넣기(권장)** — 파일이 데이터와 함께 이동하므로 명령에 아무것도 추가할 필요 없음.
+2. **명령 인자** — 파일이 다른 위치에 있을 때 수동 실행에서 명시:
 ```bat
-set COUINAUD_SPACING_CSV=D:\data\volumes_per_patient.csv
+.venv\Scripts\python scripts\single.py --config configs\exp4c.yaml --data D:\data\liver --site A --spacing-file D:\meta\volumes_per_patient.csv
 ```
-```bash
-export COUINAUD_SPACING_CSV=/data/volumes_per_patient.csv
-```
-512 기준 간격 = `pixel_spacing × orig_matrix / 512` 로 자동 환산된다(예: 1024 매트릭스 0.28125 → 0.5625 mm). 탐색 순서: 환경변수 → `<data>/spacing.csv` → `<data>/volumes_per_patient.csv` → 기본값. 카탈로그의 `spacing_source` 열에서 어느 것이 쓰였는지 확인할 수 있다.
+(`patient_catalog.py`·`single.py`·`client.py` 공통 옵션. 인자가 폴더 내 파일보다 우선.)
+3. 환경변수 `COUINAUD_SPACING_CSV`(예비).
+
+폴더 내 파일 탐색 순서: `spacing.xlsx` → `spacing.csv` → `volumes_per_patient.csv` → (xlsx가 1개뿐이면 그 파일) → 기본값. 어느 것이 쓰였는지는 카탈로그의 `spacing_source` 열로 확인한다.
 
 첫 실행 때 각 환자 폴더에 `label.npy`(argmax 캐시, 21 MB)를 자동 생성한다. 데이터 폴더에 쓰기 권한이 없으면 환경변수 `COUINAUD_LABEL_CACHE=<쓰기 가능한 폴더>` 를 지정한다.
 
