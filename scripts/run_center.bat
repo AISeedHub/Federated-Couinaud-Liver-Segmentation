@@ -1,12 +1,19 @@
 @echo off
 REM 센터용 원커맨드 실행(Windows): 단일센터 5-fold → FL 클라이언트(fold×방법론 자동 순회).
-REM 사용: run_center.bat <실험(exp4c|exp5c)> <데이터폴더> <센터코드(A|B|C|D|E)> [run이름]
+REM 사용: run_center.bat <실험> <데이터폴더> <센터코드> [run이름|-] [spacing파일|-] [레이블맵json|-]
 REM 실행마다 outputs\<실험>\<run>\ 에 별도 저장(기본 run = 시작 시각). 이어서 하려면 같은 run 이름을 4번째 인자로.
 REM 종료: outputs\<실험>\client_<센터>\STOP.txt 생성(현 세션 후 정상 종료). 재실행 시 완료된 fold/method는 건너뜀.
 setlocal
 cd /d "%~dp0\.."
 if "%~3"=="" (echo usage: run_center.bat exp4c D:\data\liver A & exit /b 1)
 set EXP=%~1& set DATA=%~2& set SITE=%~3& set RUN=%~4
+set SPACING=%~5& set LABELMAP=%~6
+if "%SPACING%"=="-" set SPACING=
+if "%LABELMAP%"=="-" set LABELMAP=
+set SPACING_ARG=
+if not "%SPACING%"=="" set SPACING_ARG=--spacing-file "%SPACING%"
+set LABEL_ARG=
+if not "%LABELMAP%"=="" set LABEL_ARG=--lesion-labels "%LABELMAP%"
 if "%RUN%"=="" set RUN=%RUN_NAME%
 if "%RUN%"=="" for /f "tokens=1-3 delims=/:. " %%a in ("%date% %time%") do set RUN=run_%date:~0,4%%date:~5,2%%date:~8,2%_%time:~0,2%%time:~3,2%%time:~6,2%
 set RUN=%RUN: =0%
@@ -34,16 +41,16 @@ if not "%IW%"=="" if not exist "%IW%" (
 echo [%date% %time%] start %EXP% %SITE% >> %LOG%
 :loop
 if exist outputs\%EXP%\%RUN%\client_%SITE%\STOP.txt (echo STOP.txt — exit >> %LOG% & goto end)
-.venv\Scripts\python scripts\patient_catalog.py --data "%DATA%" --exp %EXP% --site %SITE% --run %RUN% >> %LOG% 2>&1
+.venv\Scripts\python scripts\patient_catalog.py --data "%DATA%" --exp %EXP% --site %SITE% --run %RUN% %SPACING_ARG% %LABEL_ARG% >> %LOG% 2>&1
 set RS=1
 for /f "tokens=2" %%r in ('findstr /b "run_single:" configs\%EXP%.yaml') do set RS=%%r
 if "%RS%"=="0" goto fl
-.venv\Scripts\python scripts\single.py --config configs\%EXP%.yaml --data "%DATA%" --site %SITE% --run %RUN% >> %LOG% 2>&1
+.venv\Scripts\python scripts\single.py --config configs\%EXP%.yaml --data "%DATA%" --site %SITE% --run %RUN% %SPACING_ARG% >> %LOG% 2>&1
 findstr /c:"단일센터 완료" outputs\%EXP%\%RUN%\client_%SITE%\single.log >nul || (echo [%date% %time%] single.py 미완료 - 60s 후 재시도 >> %LOG% & timeout /t 60 /nobreak >nul & goto loop)
 :fl
 REM 진짜 로컬(단일센터) 모델·지표를 FL 전에 먼저 서버로 전송
 .venv\Scripts\python scripts\export_results.py --exp %EXP% --site %SITE% --run %RUN% >> %LOG% 2>&1 && .venv\Scripts\python scripts\upload_results.py --exp %EXP% --site %SITE% --run %RUN% >> %LOG% 2>&1
-.venv\Scripts\python scripts\client.py --config configs\%EXP%.yaml --data "%DATA%" --site %SITE% --run %RUN% >> %LOG% 2>&1
+.venv\Scripts\python scripts\client.py --config configs\%EXP%.yaml --data "%DATA%" --site %SITE% --run %RUN% %SPACING_ARG% >> %LOG% 2>&1
 if exist outputs\%EXP%\%RUN%\client_%SITE%\STOP.txt goto end
 findstr /c:"모든 세션 완료" %LOG% >nul && goto end
 echo [%date% %time%] process exited unexpectedly — restart in 60s >> %LOG%

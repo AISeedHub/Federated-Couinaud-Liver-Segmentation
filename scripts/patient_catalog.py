@@ -14,7 +14,7 @@ from couinaudfl.data import list_cases, load_case, kfold_split, SEG_NAMES
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--data", required=True); ap.add_argument("--exp", required=True); ap.add_argument("--site", default=socket.gethostname())
-    ap.add_argument("--config", default=None); ap.add_argument("--out", default="outputs"); ap.add_argument("--run", required=True); ap.add_argument("--spacing-file", default=None, help="환자별 spacing 표(csv/xlsx) 경로"); a = ap.parse_args()
+    ap.add_argument("--config", default=None); ap.add_argument("--out", default="outputs"); ap.add_argument("--run", required=True); ap.add_argument("--spacing-file", default=None, help="환자별 spacing 표(csv/xlsx) 경로"); ap.add_argument("--lesion-labels", default=None, help="병변 채널 매핑 json 경로(최우선)"); a = ap.parse_args()
     C = yaml.safe_load(open(a.config or f"configs/{a.exp}.yaml")); root = os.path.join(a.out, a.exp, a.run, f"client_{a.site}"); os.makedirs(root, exist_ok=True)
     from couinaudfl.data import set_spacing_file
     if a.spacing_file: set_spacing_file(a.spacing_file)
@@ -42,7 +42,9 @@ def main():
     # 병변 채널 매핑 우선순위: ① 데이터 폴더(센터 수정본) ② 레포 내장 configs/lesion_labels/<site>.json ③ 템플릿
     import shutil
     lj = os.path.join(a.data, "lesion_labels.json"); bj = os.path.join("configs", "lesion_labels", f"{a.site}.json")
-    if os.path.exists(lj):
+    if a.lesion_labels and os.path.exists(a.lesion_labels):
+        shutil.copy(a.lesion_labels, os.path.join(root, "lesion_labels.json")); print(f"병변 매핑: 인자 지정본 사용 ({a.lesion_labels})")
+    elif os.path.exists(lj):
         shutil.copy(lj, os.path.join(root, "lesion_labels.json")); print(f"병변 매핑: 데이터 폴더 제공본 사용 ({lj})")
     elif os.path.exists(bj):
         shutil.copy(bj, os.path.join(root, "lesion_labels.json")); print(f"병변 매핑: 레포 내장 {a.site} 매핑 사용 ({bj})")

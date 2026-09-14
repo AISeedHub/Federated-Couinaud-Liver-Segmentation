@@ -89,55 +89,48 @@ spacing 파일을 알려주는 방법(우선순위 순):
 ### 3-1. 한 줄 실행 (권장)
 단일센터 5-fold → FL 클라이언트(fold 0–4 × 방법론 4종) 순으로 **자동** 진행. 서버 세션 전환·재접속·재시작을 스스로 처리한다.
 
-센터별 실제 명령(전부 4센터 exp4c → 5센터 exp5c 순차; 전남대는 exp5c만):
+센터별 실제 명령 — **데이터 경로·spacing 파일·레이블맵을 명령에 모두 명시**한다(파일 인자는 순서 무관 자동 판별: `.json`=레이블맵, 그 외 실존 파일=spacing; 생략하면 데이터 폴더 안의 파일/레포 내장 매핑을 사용). 전부 4센터 exp4c → 5센터 exp5c 순차, 전남대는 exp5c만.
 
-**Windows** — 순천향천안 A · 강릉아산 C (cmd 또는 PowerShell, PowerShell은 앞에 `.\`)
+**Windows** — 순천향천안 A · 강릉아산 C (PowerShell은 앞에 `.\`)
 ```bat
 cd C:\Federated-Couinaud-Liver-Segmentation
-scripts\run_center_seq.bat D:\data\liver A exp4c exp5c
+scripts\run_center_seq.bat D:\couinaud\data A D:\couinaud\spacing.xlsx D:\couinaud\lesion_labels.json exp4c exp5c
 ```
-(C는 센터 코드만 교체.) 창을 닫지 말 것(닫으면 재시작 루프도 종료). 절전·화면 잠금은 스크립트가 해제한다.
-재부팅 후 이어서 하려면 run 이름을 환경변수로 주고 같은 명령:
-```bat
-set RUN_NAME=run_20260903_101500      ← outputs\exp4c\LAST_RUN 파일 내용
-scripts\run_center_seq.bat D:\data\liver A exp4c exp5c
-```
+(C는 센터 코드와 경로만 교체.) 창을 닫지 말 것. 절전·화면 잠금은 스크립트가 해제한다.
+재부팅 후 이어서: `set RUN_NAME=<outputs\exp4c\LAST_RUN 내용>` 지정 후 같은 명령.
 
-**DGX Spark (Linux aarch64, CUDA 13)** — 고려대안산 B
+**DGX Spark (Linux aarch64)** — 고려대안산 B
 ```bash
 cd ~/Federated-Couinaud-Liver-Segmentation
-nohup bash scripts/run_center_seq.sh /home/crex/fedlr/LiverSegmentation/merged B exp4c exp5c > /dev/null 2>&1 &
+nohup bash scripts/run_center_seq.sh /home/crex/fedlr/LiverSegmentation/merged B /home/crex/fedlr/spacing.xlsx exp4c exp5c > /dev/null 2>&1 &
 tail -f outputs/exp4c/$(cat outputs/exp4c/LAST_RUN)/client_B/run_center.log
 ```
+(레이블맵은 레포 내장 B 매핑 자동 적용 — 직접 주려면 `.json` 경로를 인자에 추가.)
 
 **Ubuntu (x86)** — 분당서울대 D
 ```bash
 cd ~/Federated-Couinaud-Liver-Segmentation
-nohup bash scripts/run_center_seq.sh /data/liver D exp4c exp5c > /dev/null 2>&1 &
+nohup bash scripts/run_center_seq.sh /data/liver D /data/liver/volumes_per_patient.csv /data/liver/lesion_labels.json exp4c exp5c > /dev/null 2>&1 &
 tail -f outputs/exp4c/$(cat outputs/exp4c/LAST_RUN)/client_D/run_center.log
 ```
 
-**Ubuntu (x86)** — 전남대 E, exp5c만 (서버와 같은 학내망이라 방화벽 무관)
+**Ubuntu (x86)** — 전남대 E, exp5c만 (MR 묶음은 spacing이 meta.json에 내장, 병변 없음 → 파일 인자 불필요)
 ```bash
 cd ~/Federated-Couinaud-Liver-Segmentation
 nohup bash scripts/run_center.sh exp5c ~/e_center_mr E > /dev/null 2>&1 &
 tail -f outputs/exp5c/$(cat outputs/exp5c/LAST_RUN)/client_E/run_center.log
 ```
-exp4c가 끝나 서버가 9596을 열 때까지 "연결 대기"를 반복하는 것이 정상이며, **며칠이 걸려도 무해하다**(30초마다 접속 시도 한 번, GPU·CPU 미사용). 미리 켜 두지 않고 exp4c가 끝날 즈음 켜도 된다.
-Linux에서 재부팅에도 자동 복구하려면(선택):
-```bash
-crontab -e   # 아래 한 줄 추가 (경로·코드는 센터에 맞게)
-@reboot cd ~/Federated-Couinaud-Liver-Segmentation && RUN_NAME=$(cat outputs/exp5c/LAST_RUN 2>/dev/null) bash scripts/run_center.sh exp5c ~/e_center_mr E
-```
+exp4c가 끝나 서버가 9596을 열 때까지 "연결 대기"를 반복하는 것이 정상이며, **며칠이 걸려도 무해하다**(30초마다 접속 시도 한 번, GPU·CPU 미사용).
+Linux 재부팅 자동 복구(선택): crontab에 `@reboot cd ~/Federated-Couinaud-Liver-Segmentation && RUN_NAME=$(cat outputs/exp5c/LAST_RUN 2>/dev/null) bash scripts/run_center.sh exp5c ~/e_center_mr E`
 
 단일 실험만 돌릴 때:
 ```bat
-scripts\run_center.bat exp4c D:\data\liver A
+scripts\run_center.bat exp4c D:\couinaud\data A - D:\couinaud\spacing.xlsx D:\couinaud\lesion_labels.json
 ```
 ```bash
 nohup bash scripts/run_center.sh exp4c /data/liver D > /dev/null 2>&1 &
 ```
-인자: `<실험> <데이터 폴더> <센터 코드> [run 이름]`. 센터 코드는 A(순천향천안) B(고려대안산) C(강릉아산) D(분당서울대) E(전남대).
+인자: `<실험> <데이터 폴더> <센터 코드> [run이름|-] [spacing파일|-] [레이블맵json|-]`. 센터 코드는 A(순천향천안) B(고려대안산) C(강릉아산) D(분당서울대) E(전남대).
 
 **실행 단위 분리**: 실행할 때마다 `outputs\<실험>\<run>\` 아래에 별도로 저장된다(run 기본값 = 시작 시각, 예 `run_20260903_101500`). 가중치·지표가 이전 실행을 덮어쓰지 않는다. 중단 후 이어서 하려면 같은 run 이름을 4번째 인자로 준다(마지막 run 이름은 `outputs\<실험>\LAST_RUN`에 기록됨).
 
