@@ -11,3 +11,6 @@ runs/
 STOP.txt
 .env
 _v1_local_backup/
+
+*.out
+*.egg-info/
