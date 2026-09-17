@@ -4,6 +4,9 @@
 # 실행마다 outputs/<exp>/<run>/ 에 별도 저장(기본 run = 시작 시각). 이어서 하려면 같은 run 이름을 4번째 인자로.
 # 종료: outputs/<exp>/client_<site>/STOP.txt 생성. 재실행 시 완료된 fold/method 건너뜀.
 set -u; cd "$(dirname "$0")/.."
+FREE_GB=$(df -BG --output=avail . | tail -1 | tr -dc 0-9)
+if [ "$FREE_GB" -lt 25 ]; then echo "[오류] 디스크 가용 ${FREE_GB}GB < 25GB — 정리 후 재실행 (본 실험은 센터당 약 60~120GB 필요)"; exit 1; fi
+if [ "$FREE_GB" -lt 100 ]; then echo "[경고] 디스크 가용 ${FREE_GB}GB — 실험 도중 부족할 수 있음(권장 120GB+)"; fi
 EXP=${1:?exp}; DATA=${2:?data dir}; SITE=${3:?site}; RUN=${4:-${RUN_NAME:-run_$(date +%Y%m%d_%H%M%S)}}
 SPACING=${5:-}; LABELMAP=${6:-}; [ "$SPACING" = "-" ] && SPACING=""; [ "$LABELMAP" = "-" ] && LABELMAP=""
 SPACING_ARG=""; [ -n "$SPACING" ] && SPACING_ARG="--spacing-file $SPACING"

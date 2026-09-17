@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import yaml, torch, flwr as fl
 from flwr.common import ndarrays_to_parameters
 from couinaudfl.model import build_model
+from couinaudfl.fsutil import write_marker, ensure_free
 from couinaudfl.fl import CouinaudStrategy, get_nd, METHODS
 
 ap = argparse.ArgumentParser(); ap.add_argument("--config", required=True, nargs="+", help="여러 개 주면 순서대로 실행(예: exp4c.yaml exp5c.yaml)"); ap.add_argument("--folds", type=int, nargs="*", default=None); ap.add_argument("--collect-port", type=int, default=9598, help="결과 수집 서버 포트(0=끄기)"); ap.add_argument("--run", default=None, help="실행 이름(기본: 현재 시각). 같은 이름으로 재실행하면 이어서 함")
@@ -24,6 +25,8 @@ def start_collect(port, root):
 
 
 def main():
+    import signal, sys as _s
+    signal.signal(signal.SIGTERM, lambda *a: _s.exit(0))   # kill 시 finally(수집기 종료) 보장
     ap.add_argument("--methods", nargs="*", default=None); a = ap.parse_args()
     run = a.run or datetime.datetime.now().strftime("run_%Y%m%d_%H%M%S")
     collect = start_collect(a.collect_port, "outputs/collected") if a.collect_port else None
@@ -71,9 +74,16 @@ def run_experiment(cfg_path, a, run):
                                      server_lr=C.get("fedadam_lr", 1e-3), fold=fold, fraction_fit=1.0, fraction_evaluate=1.0,
                                      min_fit_clients=C["min_clients"], min_evaluate_clients=C["min_clients"], min_available_clients=C["min_clients"],
                                      initial_parameters=ndarrays_to_parameters(init_nd))
-            t0 = time.time()
-            fl.server.start_server(server_address=C["server_address"], config=fl.server.ServerConfig(num_rounds=C["rounds"], round_timeout=float(C.get("round_timeout_sec", 10800))), strategy=strat)
-            open(done, "w").write(f"{datetime.datetime.now()} {time.time()-t0:.0f}s\n"); log(f"fold {fold} {method} 완료 {time.time()-t0:.0f}s")
+            while True:
+                ensure_free(out, 5, f"fold{fold} {method} 세션 전")
+                t0 = time.time()
+                fl.server.start_server(server_address=C["server_address"], config=fl.server.ServerConfig(num_rounds=C["rounds"], round_timeout=float(C.get("round_timeout_sec", 10800))), strategy=strat)
+                got = sum(int(h.get("n_clients", 0)) for h in strat.history)
+                if got == 0:
+                    log(f"[경고] fold {fold} {method}: 유효 결과 0(클라이언트 전멸) — DONE 기록 없이 60s 후 동일 세션 재개")
+                    time.sleep(60); strat.history = []; continue
+                break
+            write_marker(done, f"{datetime.datetime.now()} {time.time()-t0:.0f}s\n"); log(f"fold {fold} {method} 완료 {time.time()-t0:.0f}s")
             time.sleep(C.get("gap_sec", 10))
     log("모든 세션 완료"); logf.close()
 

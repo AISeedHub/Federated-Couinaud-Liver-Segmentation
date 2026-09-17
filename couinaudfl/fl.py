@@ -46,12 +46,22 @@ class CouinaudClient(fl.client.NumPyClient):
 
     def get_parameters(self, config): return get_nd(self.model)
 
+    expected_fold = None; expected_method = None   # client.py가 세션 시작 시 지정(미지정=검증 비활성)
+
+    def _check_session(self, config, method):
+        """서버가 보낸 (fold, method)와 로컬 기대 세션 대조 — 어긋나면 학습 없이 즉시 중단(라벨 오염 방지)."""
+        if self.expected_fold is None: return
+        sf = int(config.get("fold", -1))
+        if sf != int(self.expected_fold) or method != self.expected_method:
+            raise RuntimeError(f"SESSION_MISMATCH: 서버 fold{sf}/{method} vs 로컬 fold{self.expected_fold}/{self.expected_method} — 서버·클라이언트 run 진도가 어긋났습니다. 양쪽을 새 run으로 정렬하세요.")
+
     def _apply_global(self, params, method):
         keep = self.in_keys if method == "FedBN" else ()
         set_nd(self.model, params, keep); self.last_global = copy.deepcopy(self.model.state_dict())
 
     def fit(self, parameters, config):
         method = str(config.get("method", "FedAvg")); rnd = int(config.get("server_round", 1)); self.round = rnd
+        self._check_session(config, method)
         le = int(config.get("local_epochs", 10)); total = int(config.get("total_epochs", 200)); lr = float(config.get("lr", 0.01))
         self._apply_global(parameters, method)
         prox_mu = float(config.get("fedprox_mu", 0.0)) if method == "FedProx" else 0.0
@@ -63,6 +73,7 @@ class CouinaudClient(fl.client.NumPyClient):
 
     def evaluate(self, parameters, config):
         method = str(config.get("method", "FedAvg")); rnd = int(config.get("server_round", 0)); final = bool(config.get("final", False))
+        self._check_session(config, method)
         self._apply_global(parameters, method)
         v = validate(self.model, self.val_cases, self.device, self.amp)
         torch.save(self.last_global, os.path.join(self.out, method, f"global_r{rnd:02d}.pth"))

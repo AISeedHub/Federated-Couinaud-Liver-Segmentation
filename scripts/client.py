@@ -20,6 +20,7 @@ if os.name == "nt":
 from couinaudfl.model import build_model
 from couinaudfl.data import list_cases, kfold_split
 from couinaudfl.fl import CouinaudClient, METHODS
+from couinaudfl.fsutil import write_marker, ensure_free
 
 ap = argparse.ArgumentParser(); ap.add_argument("--config", required=True); ap.add_argument("--data", required=True); ap.add_argument("--site", default=socket.gethostname())
 ap.add_argument("--folds", type=int, nargs="*", default=None); ap.add_argument("--run", default=None, help="실행 이름(기본: 현재 시각). 같은 이름으로 재실행하면 이어서 함"); ap.add_argument("--methods", nargs="*", default=None); ap.add_argument("--workers", type=int, default=4)
@@ -43,6 +44,7 @@ def main():
             od = os.path.join(root, f"fold{fold}"); done = os.path.join(od, f"DONE_{method}")
             if os.path.exists(os.path.join(root, "STOP.txt")): log("STOP.txt — 종료"); sys.exit(0)
             if os.path.exists(done): log(f"skip fold{fold} {method}"); continue
+            ensure_free(root, 10, f"fold{fold} {method} 시작 전")
             log(f"=== fold {fold} / {method} : train {len(tr)} val {len(va)} test {len(te)} → {server}")
             model = client = None
             while True:
@@ -50,15 +52,18 @@ def main():
                     if client is None:   # 최초 또는 예외 후: 모델·클라이언트를 새로 만들어 GPU 상태를 깨끗이
                         model = build_model().to(dev)
                         client = CouinaudClient(model, tr, va, te, dev, od, amp=amp, workers=a.workers, log=log, cid=a.site)
+                        client.expected_fold = fold; client.expected_method = method
                     fl.client.start_client(server_address=server, client=client.to_client()); break
                 except Exception as e:
                     import traceback, gc; tb = traceback.format_exc()
-                    if "grpc" in tb.lower() or "connect" in str(e).lower() or "UNAVAILABLE" in tb:
+                    if "SESSION_MISMATCH" in tb:
+                        log(f"세션 불일치 감지 — 학습 중단·대기: {str(e)[:160]}"); time.sleep(60)
+                    elif "grpc" in tb.lower() or "connect" in str(e).lower() or "UNAVAILABLE" in tb:
                         log(f"연결 대기 ({type(e).__name__}) 30s 후 재시도"); time.sleep(30)
                     else:   # 학습 중 예외 — 기록 후 모델을 버리고 새로 만들어 재접속(서버는 round_timeout 후 다음 라운드로 진행)
                         log(f"학습 예외 → {os.path.join(root, 'errors.log')} 기록, 모델 재생성 후 30s 뒤 재접속"); open(os.path.join(root, "errors.log"), "a").write(f"\n{datetime.datetime.now()} fold{fold} {method}\n{tb}")
                         del client, model; client = model = None; gc.collect(); torch.cuda.empty_cache(); time.sleep(30)
-            open(done, "w").write(str(datetime.datetime.now())); log(f"fold {fold} {method} 완료")
+            write_marker(done, str(datetime.datetime.now())); log(f"fold {fold} {method} 완료")
             del model, client; torch.cuda.empty_cache(); time.sleep(C.get("gap_sec", 10))
     log("모든 세션 완료")
 

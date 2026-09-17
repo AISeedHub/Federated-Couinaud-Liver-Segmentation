@@ -10,6 +10,7 @@ import yaml, torch, pandas as pd, signal
 for _sig in ("SIGINT", "SIGBREAK"):
     if hasattr(signal, _sig): signal.signal(getattr(signal, _sig), signal.SIG_IGN)
 from couinaudfl.model import build_model
+from couinaudfl.fsutil import write_marker, ensure_free
 from couinaudfl.data import list_cases, kfold_split, load_case
 from couinaudfl.train import fit
 from couinaudfl.infer import predict_volume_auto_orient
@@ -35,7 +36,7 @@ def main():
                   open(os.path.join(root, f"fold{fold}_split.json"), "w"), indent=1)
         model = build_model().to(dev)
         if C.get("init_weights"): sd = torch.load(C["init_weights"], map_location="cpu", weights_only=False); model.load_state_dict(sd.get("model", sd))
-        log(f"=== Single fold {fold}: train {len(tr)} val {len(va)} test {len(te)} epochs {epochs}")
+        ensure_free(root, 10, f"Single fold{fold} 시작 전"); log(f"=== Single fold {fold}: train {len(tr)} val {len(va)} test {len(te)} epochs {epochs}")
         r = fit(model, tr, va, od, dev, epochs=epochs, lr=C.get("lr", 0.01), amp=amp, num_workers=a.workers, val_every=C.get("local_epochs", 10), log=log)
         from couinaudfl.lesion import lesion_overlap_rows
         model.load_state_dict(torch.load(os.path.join(od, "best.pth"), map_location=dev)); model.eval(); rows = []; lrows = []
@@ -50,7 +51,7 @@ def main():
         if lrows: pd.DataFrame(lrows).to_csv(os.path.join(od, "lesion_overlap.csv"), index=False)
         s = summarize(rows)
         json.dump(s, open(os.path.join(od, "test_summary.json"), "w"), indent=1); log(f"fold {fold} Single test {json.dumps(s)}")
-        open(done, "w").write(str(datetime.datetime.now()))
+        write_marker(done, str(datetime.datetime.now()))
     log("단일센터 완료")
 
 

@@ -4,7 +4,7 @@ server_address: "0.0.0.0:9596"
 # SERVER_IP는 배포 시 별도 전달되는 실제 서버 주소로 교체 (공개 저장소에는 기재하지 않음)
 client_server_address: "SERVER_IP:9596"
 min_clients: 5
-rounds: 20            # rounds × local_epochs = 총 에폭 (단일센터와 동일)
+rounds: 10            # rounds × local_epochs = 총 에폭 (단일센터와 동일)
 local_epochs: 10
 methods: [FedAvg, FedProx, FedAdam, FedBN]
 folds: [0, 1, 2, 3, 4]
