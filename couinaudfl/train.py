@@ -64,6 +64,7 @@ def fit(model, train_cases, val_cases, out_dir, device, epochs=200, lr=0.01, amp
         val_every=5, val_max=20, resume=True, cache=False, log=print, epoch_offset=0, total_epochs=None, save_prefix=""):
     """epochs만큼 학습. total_epochs(전체 일정)로 poly lr을 계산하므로 FL 로컬 에폭도 전역 일정을 따른다."""
     os.makedirs(out_dir, exist_ok=True); total = total_epochs or (epoch_offset + epochs)
+    model.to(device)   # 옵티마이저 생성·state 로드 전에 이동 — resume 시 momentum buffer가 CPU에 남아 device 불일치로 죽는 버그 수정
     opt = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.99, nesterov=True, weight_decay=3e-5)
     scaler = torch.amp.GradScaler("cuda", enabled=amp and device.type == "cuda")
     last = os.path.join(out_dir, f"{save_prefix}last.pth"); best_p = os.path.join(out_dir, f"{save_prefix}best.pth")
@@ -71,8 +72,11 @@ def fit(model, train_cases, val_cases, out_dir, device, epochs=200, lr=0.01, amp
     if resume and os.path.exists(last):
         ck = torch.load(last, map_location=device, weights_only=False)
         model.load_state_dict(ck["model"]); opt.load_state_dict(ck["opt"]); start = ck["epoch"] + 1; best = ck.get("best", -1.0); hist = ck.get("hist", [])
+        for st_ in opt.state.values():   # 안전벨트: 어떤 경로로 로드돼도 opt state를 학습 device로 강제 이동
+            for k_, v_ in st_.items():
+                if torch.is_tensor(v_): st_[k_] = v_.to(device)
         log(f"[resume] epoch {start} best {best:.4f}")
-    loader = make_loader(train_cases, "train", batch_size, num_workers, cache=cache); model.to(device).train()
+    loader = make_loader(train_cases, "train", batch_size, num_workers, cache=cache); model.train()
     for ep in range(start, epoch_offset + epochs):
         if os.path.exists(os.path.join(out_dir, "STOP.txt")): log("[stop] STOP.txt 감지 — 에폭 경계에서 종료"); break
         cur = lr * (1 - ep / total) ** 0.9
