@@ -32,6 +32,11 @@ set LOG=outputs\%EXP%\%RUN%\client_%SITE%\run_center.log
 REM 실행 전 GPU 점검 (CPU 폴백 방지)
 .venv\Scripts\python -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)" 2>>%LOG%
 if errorlevel 1 (echo [오류] GPU를 잡지 못했습니다. nvidia-smi 확인 후 scripts\install.bat 재실행 ^(uv sync/uv run 금지^) & echo GPU FAIL >> %LOG% & exit /b 1)
+REM 서버 연결 선점검: FL 포트는 single 종료 후에야 처음 접속 - 미리 확인 (건너뛰려면 set SKIP_SERVER_CHECK=1)
+if not "%SKIP_SERVER_CHECK%"=="1" (
+  .venv\Scripts\python.exe scripts\check_server.py
+  if errorlevel 1 (echo [오류] 서버 연결 점검 실패 - 서버 기동/방화벽/SERVER_IP 치환 확인 후 재실행 & echo SERVER CHECK FAIL >> %LOG% & exit /b 1)
+)
 REM 사전학습 가중치 자동 수급
 for /f "tokens=2" %%w in ('findstr /b "init_weights:" configs\%EXP%.yaml') do set IW=%%w
 set IW=%IW:"=%

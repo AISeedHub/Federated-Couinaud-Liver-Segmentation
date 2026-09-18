@@ -16,6 +16,15 @@ OUT=outputs/$EXP/$RUN/client_$SITE; mkdir -p "$OUT"; LOG=$OUT/run_center.log; ec
 if ! .venv/bin/python -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)" 2>>"$LOG"; then
   echo "[오류] GPU를 잡지 못했습니다. nvidia-smi의 CUDA 버전 확인 후 scripts/install.sh 재실행 (uv sync/uv run 사용 금지 — torch가 제거됨)" | tee -a "$LOG"; exit 1
 fi
+# 서버 연결 선점검: FL 포트(9595/9596)는 single 종료 후에야 처음 접속하므로 미리 확인한다.
+# 방화벽이 막혀 있으면 single 몇 시간을 버린 뒤 FL 단계에서 멈춘다. 우회: SKIP_SERVER_CHECK=1
+if [ "${SKIP_SERVER_CHECK:-0}" != "1" ]; then
+  CHK=$(.venv/bin/python scripts/check_server.py 2>&1); CS=$?
+  echo "$CHK" | tee -a "$LOG"
+  if [ "$CS" -ne 0 ]; then
+    echo "[오류] 서버 연결 점검 실패 — 서버 기동·방화벽·SERVER_IP 치환 확인 후 재실행 (건너뛰려면 SKIP_SERVER_CHECK=1)" | tee -a "$LOG"; exit 1
+  fi
+fi
 # 사전학습 가중치 자동 수급 (없으면 서버 9598에서 다운로드)
 IW=$(grep -E "^init_weights:" configs/$EXP.yaml | awk '{print $2}' | tr -d '"')
 UURL=$(grep -E "^upload_url:" configs/$EXP.yaml | awk '{print $2}' | tr -d '"' | sed 's|/upload$||')

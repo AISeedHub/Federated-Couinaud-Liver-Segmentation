@@ -1,4 +1,8 @@
-# CouinaudFL — Federated Nine-Segment Couinaud Liver Segmentation (v2)
+# Federated Learning for Automatic Segmentation of Nine Couinaud Liver Segments across Four Institutions: A Feasibility Study
+
+<p align="center">
+  <img src="assets/figure1.jpg" width="90%" alt="Federated learning pipeline">
+</p>
 
 복부 CT에서 Couinaud 간 9분절(I, II, III, IVa, IVb, V–VIII)을 자동 분할하는 다기관 연합학습 프레임워크.
 
@@ -292,6 +296,14 @@ Windows는 `.venv\Scripts\python`, Linux는 `.venv/bin/python`. `<run>`은 실�
 | `scripts/pretrain.py` | `python scripts/pretrain.py --mode pretrain --epochs 200 --amp 0` / `--mode tian5fold --fold 0` / `--mode mr5fold --fold 0 --ts .../ts/730` | 공용 사전학습·5-fold 재현 |
 | `scripts/eval_ts_zero_shot.py` | `python scripts/eval_ts_zero_shot.py --task liver_segments --cases <폴더> [--list split.json:key] [--mr]` | TS 570/576 zero-shot |
 | `scripts/eval_gunetr_zero_shot.py` | `python scripts/eval_gunetr_zero_shot.py --cases <폴더> [--liver-mask gt\|none]` | G-UNETR++ zero-shot |
+| `scripts/check_server.py` | `python scripts/check_server.py` | 실행 전 서버 연결 점검(FL 포트·수집 서버·가중치) |
 | `tools/gen_changes.py` | `python tools/gen_changes.py` | 센터 배포용 변경기록 생성 |
 
 공통 옵션: `--workers N`(DataLoader 워커), `--limit N`(디버그용 케이스 수 제한, pretrain/eval), `--no-hd`(HD95 생략).
+
+---
+
+## 개발 도구 명시
+본 저장소의 코드 작성·리팩터링·검증 과정에서 Anthropic Claude(Claude Code)를 보조 도구로 사용했다.
+실험 설계, 데이터 처리 방침, 결과 해석과 최종 검증은 모두 저자들이 수행했다.
+학술지 정책(ICMJE·COPE)상 AI 도구는 저자가 될 수 없으므로, 논문에서는 Acknowledgments에 동일한 취지를 기재한다.
