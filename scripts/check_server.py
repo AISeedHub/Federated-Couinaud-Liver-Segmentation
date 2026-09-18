@@ -39,12 +39,12 @@ def main():
     ap.add_argument("--exp", default="exp4c,exp5c", help="점검할 실험 이름(콤마 구분, configs/<exp>.yaml)")
     args = ap.parse_args()
     print("=== 서버 연결 점검 ===")
-    targets, upload_url = [], None
+    targets, upload_url, unresolved = [], None, []
     for exp in [e.strip() for e in args.exp.split(",") if e.strip()]:
         p = os.path.join(HERE, "configs", f"{exp}.yaml")
         if not os.path.exists(p):
             continue
-        addr = cfg_get(p, "server_address")
+        addr = cfg_get(p, "client_server_address") or cfg_get(p, "server_address")
         uurl = cfg_get(p, "upload_url")
         if uurl and "SERVER_IP" not in uurl:
             upload_url = uurl
@@ -52,7 +52,8 @@ def main():
             host, _, port = addr.rpartition(":")
             # 센터 배포본은 클라이언트가 붙을 실제 주소여야 한다
             if host in ("0.0.0.0", "", "SERVER_IP"):
-                print(f"[{exp}] server_address={addr} — 실제 서버 주소로 치환 필요 (SERVER_IP/0.0.0.0 상태)")
+                print(f"[{exp}] 클라이언트 접속 주소={addr} — SERVER_IP를 실제 서버 주소로 치환 필요")
+                unresolved.append(exp)
                 continue
             targets.append((exp, host, port))
 
@@ -60,7 +61,7 @@ def main():
         print("\n결과: 설정에 실제 서버 주소가 없습니다. configs/*.yaml 의 SERVER_IP를 치환한 뒤 다시 실행하세요.")
         return 2
 
-    ok = True
+    ok = not unresolved
     for exp, host, port in targets:
         good, err = tcp(host, port)
         print(f"[{exp}] FL {host}:{port} … {'OK' if good else 'FAIL  ' + err}")
@@ -75,10 +76,10 @@ def main():
         ok &= good
         if good:  # 가중치 엔드포인트까지 확인 (실제 다운로드는 하지 않음)
             try:
-                req = urllib.request.Request(base + "/weights", method="HEAD")
+                req = urllib.request.Request(base + "/weights", headers={"Range": "bytes=0-0"})
                 with urllib.request.urlopen(req, timeout=10) as r:
-                    size = r.headers.get("Content-Length")
-                    print(f"[가중치] {base}/weights … OK" + (f" ({int(size)//(1024*1024)} MB)" if size else ""))
+                    r.read(1)
+                    print(f"[가중치] {base}/weights … OK")
             except Exception as e:
                 print(f"[가중치] {base}/weights … 확인 실패 ({type(e).__name__}) — 첫 실행 시 GitHub 릴리스로 폴백됩니다")
 
