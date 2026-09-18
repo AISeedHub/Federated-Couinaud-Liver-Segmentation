@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 REM Windows 설치: CUDA 드라이버 버전에 맞는 torch 휠 선택. 잠금 파일 없음.
 cd /d "%~dp0\.."
 where uv >nul 2>nul || pip install -q uv

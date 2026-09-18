@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 REM 센터용 원커맨드 실행(Windows): 단일센터 5-fold → FL 클라이언트(fold×방법론 자동 순회).
 REM 사용: run_center.bat <실험> <데이터폴더> <센터코드> [run이름|-] [spacing파일|-] [레이블맵json|-]
 REM 실행마다 outputs\<실험>\<run>\ 에 별도 저장(기본 run = 시작 시각). 이어서 하려면 같은 run 이름을 4번째 인자로.
