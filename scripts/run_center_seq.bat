@@ -5,14 +5,15 @@ REM   파일 인자는 순서 무관 자동 판별(.json=레이블맵, 그 외 �
 cd /d "%~dp0\.."
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
-set DATA=%~1& set SITE=%~2
+set "DATA=%~1"
+set "SITE=%~2"
 shift & shift
 set SPACING=-& set LABELMAP=-& set EXPS=
 :scan
 if "%~1"=="" goto run
 if exist "configs\%~1.yaml" (set EXPS=%EXPS% %~1& goto nextarg)
 if exist "%~1" (
-  if /i "%~x1"==".json" (set LABELMAP=%~1) else (set SPACING=%~1)
+  if /i "%~x1"==".json" (set "LABELMAP=%~1") else (set "SPACING=%~1")
   goto nextarg
 )
 echo 알 수 없는 인자: %~1 & exit /b 1

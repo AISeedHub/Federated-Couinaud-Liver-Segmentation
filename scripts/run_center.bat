@@ -12,8 +12,12 @@ for /f %%f in ('powershell -NoProfile -Command "[math]::Floor((Get-PSDrive -Name
 if %FREE_GB% LSS 25 (echo [오류] 디스크 가용 %FREE_GB%GB ^< 25GB - 정리 후 재실행 ^(본 실험은 센터당 약 60~120GB 필요^) & exit /b 1)
 if %FREE_GB% LSS 100 echo [경고] 디스크 가용 %FREE_GB%GB - 실험 도중 부족할 수 있음^(권장 120GB+^)
 if "%~3"=="" (echo usage: run_center.bat exp4c D:\data\liver A & exit /b 1)
-set EXP=%~1& set DATA=%~2& set SITE=%~3& set RUN=%~4
-set SPACING=%~5& set LABELMAP=%~6
+set "EXP=%~1"
+set "DATA=%~2"
+set "SITE=%~3"
+set "RUN=%~4"
+set "SPACING=%~5"
+set "LABELMAP=%~6"
 if "%SPACING%"=="-" set SPACING=
 if "%LABELMAP%"=="-" set LABELMAP=
 set SPACING_ARG=
