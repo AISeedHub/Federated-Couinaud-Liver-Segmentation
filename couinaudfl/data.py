@@ -22,7 +22,7 @@ def normalize(img_u8: np.ndarray) -> np.ndarray:
     return ((img_u8.astype(np.float32) / 255.0) - MEAN) / STD
 
 
-DEFAULT_SPACING = [4.0, 0.73046875, 0.73046875]   # z 4mm 고정, 면내는 분당 기준값(센터별 spacing.csv로 대체 권장)
+DEFAULT_SPACING = [4.0, 0.73046875, 0.73046875]   # z 4mm 고정, 면내는 기준 센터 값(센터별 spacing.csv로 대체 권장)
 _SPACING_CACHE: dict = {}
 
 
@@ -56,7 +56,7 @@ def _spacing_table(root: str) -> dict:
     파일 탐색: $COUINAUD_SPACING_CSV → <data>/spacing.(xlsx|csv) → <data>/volumes_per_patient.csv(v1) → <data>/*.xlsx 1개.
     xlsx 열(센터 시트 원형): Matching, ID, Resolution(512|1024), Pixel spacing, Slice thickeness, Incremental[, Date]
       · 면내 s = Pixel spacing × Resolution/512 (1024 매트릭스 ×2 보정)
-      · z = Incremental → 없으면 Slice thickness → 없으면 4.0 (강릉 빈칸 규칙)
+      · z = Incremental → 없으면 Slice thickness → 없으면 4.0 (일부 센터 빈칸 규칙)
       · ID는 문자열 그대로 매칭(선행 0·문자 보존), 폴더명과 정확 일치 우선 + 숫자화 보조 매칭"""
     if root in _SPACING_CACHE: return _SPACING_CACHE[root]
     cands = [SPACING_CSV, os.path.join(root, "spacing.xlsx"), os.path.join(root, "spacing.csv"), os.path.join(root, "volumes_per_patient.csv")]
@@ -117,7 +117,7 @@ def load_case(case_dir: str):
     img = np.load(os.path.join(case_dir, "image.npy"), mmap_mode="r")
     mp = os.path.join(case_dir, "meta.json")
     meta = json.load(open(mp)) if os.path.exists(mp) else {}
-    if "spacing" not in meta:   # 부피(mL)용 spacing: ① 환자폴더 meta.json ② 데이터 루트 spacing.csv ③ 기본값(분당 0.73mm)
+    if "spacing" not in meta:   # 부피(mL)용 spacing: ① 환자폴더 meta.json ② 데이터 루트 spacing.csv ③ 기본값(0.73mm)
         sp = _spacing_table(os.path.dirname(case_dir.rstrip("/"))).get(os.path.basename(case_dir.rstrip("/")))
         if sp is not None and sp[1] > 0:
             meta["spacing"] = [float(sp[0]), float(sp[1]), float(sp[2])]; meta["spacing_source"] = "spacing_table"

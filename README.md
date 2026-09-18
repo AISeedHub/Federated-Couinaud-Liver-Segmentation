@@ -46,12 +46,12 @@ bash scripts/install.sh
 ```
 <data>/
 ├── 00012345/          ← 환자 폴더(이름은 임의, 산출물에는 Case N으로만 나감)
-│   ├── image.npy      uint8 (D, 512, 512)   두부→미부 80슬라이스, 4 mm, 분당 베이크드 강도(WL80/WW225 상당)
+│   ├── image.npy      uint8 (D, 512, 512)   두부→미부 80슬라이스, 4 mm, 기준 센터 베이크드 강도(WL80/WW225 상당)
 │   └── mask.npy       uint8 (18, D, 512, 512)  ch0 배경, ch1–9 = S1 S2 S3 S4a S4b S5 S6 S7 S8, ch10–17 병변(무시)
 ├── 00023456/
 └── ...
 ```
-**부피(mL) 계산용 픽셀 간격**: 데이터 루트에 `spacing.csv`를 두면 환자별 면내 간격을 쓴다(없으면 분당 기본값 0.7305 mm로 계산하고 카탈로그의 `spacing_source`가 `default`로 표시됨 — Dice·HD95에는 영향 없고 mL 값만 달라진다).
+**부피(mL) 계산용 픽셀 간격**: 데이터 루트에 `spacing.csv`를 두면 환자별 면내 간격을 쓴다(없으면 기본값 0.7305 mm로 계산하고 카탈로그의 `spacing_source`가 `default`로 표시됨 — Dice·HD95에는 영향 없고 mL 값만 달라진다).
 ```
 <data>/spacing.csv
 case,spacing_y,spacing_x
@@ -93,15 +93,15 @@ spacing 파일을 알려주는 방법(우선순위 순):
 ```
 run_center_seq.sh <데이터폴더> <센터코드> [spacing파일] [레이블맵.json] <실험1> [실험2 ...]
 ```
-- **1번 = 데이터 폴더, 2번 = 센터 코드**(A 순천향천안 · B 고려대안산 · C 강릉아산 · D 분당서울대 · E 전남대). 이 둘은 **필수이며 순서 고정** — 센터 코드를 빼먹으면 즉시 `Exit 1`로 종료된다.
+- **1번 = 데이터 폴더, 2번 = 센터 코드**(A · B · C · D · E (기관–코드 대응은 참여 기관에 별도 전달)). 이 둘은 **필수이며 순서 고정** — 센터 코드를 빼먹으면 즉시 `Exit 1`로 종료된다.
 - 3번째부터는 순서 무관 자동 판별: `configs/<이름>.yaml`이 존재하면 실험 이름, `.json` 파일이면 레이블맵, 그 외 실존 파일이면 spacing. 어느 것에도 해당 안 되는 인자(오타·없는 파일)가 있으면 시작하지 않고 종료한다.
 - spacing·레이블맵을 생략하면 데이터 폴더 안의 파일 → 레포 내장 센터 매핑(`configs/lesion_labels/<코드>.json`) 순으로 자동 사용.
 - **경로에 공백이 있으면 반드시 따옴표로 감싼다**(예: `"…/Federated Learning …/configs/lesion_labels/D.json"`). 레포 폴더 안에서 실행하므로 레포 내부 파일은 `configs/lesion_labels/D.json`처럼 상대경로로 쓰는 것이 안전하다.
 - 실패 원인을 보려면 로그를 `/dev/null` 대신 파일로 남긴다: `> seq.out 2>&1 &` 후 `cat seq.out`.
 
-센터별 실제 명령 — **데이터 경로·spacing 파일·레이블맵을 명령에 모두 명시**한다. 전부 4센터 exp4c → 5센터 exp5c 순차, 전남대는 exp5c만.
+센터별 실제 명령 — **데이터 경로·spacing 파일·레이블맵을 명령에 모두 명시**한다. 전부 4센터 exp4c → 5센터 exp5c 순차, 센터 E는 exp5c만.
 
-**Windows** — 순천향천안 A · 강릉아산 C (PowerShell은 앞에 `.\`)
+**Windows** — 센터 A · C (PowerShell은 앞에 `.\`)
 ```bat
 cd C:\Federated-Couinaud-Liver-Segmentation
 scripts\run_center_seq.bat D:\couinaud\data A D:\couinaud\spacing.xlsx D:\couinaud\lesion_labels.json exp4c exp5c
@@ -109,7 +109,7 @@ scripts\run_center_seq.bat D:\couinaud\data A D:\couinaud\spacing.xlsx D:\couina
 (C는 센터 코드와 경로만 교체.) 창을 닫지 말 것. 절전·화면 잠금은 스크립트가 해제한다.
 재부팅 후 이어서: `set RUN_NAME=<outputs\exp4c\LAST_RUN 내용>` 지정 후 같은 명령.
 
-**DGX Spark (Linux aarch64)** — 고려대안산 B
+**DGX Spark (Linux aarch64)** — 센터 B
 ```bash
 cd ~/Federated-Couinaud-Liver-Segmentation
 nohup bash scripts/run_center_seq.sh /home/crex/fedlr/LiverSegmentation/merged B /home/crex/fedlr/spacing.xlsx exp4c exp5c > /dev/null 2>&1 &
@@ -117,14 +117,14 @@ tail -f outputs/exp4c/$(cat outputs/exp4c/LAST_RUN)/client_B/run_center.log
 ```
 (레이블맵은 레포 내장 B 매핑 자동 적용 — 직접 주려면 `.json` 경로를 인자에 추가.)
 
-**Ubuntu (x86)** — 분당서울대 D
+**Ubuntu (x86)** — 센터 D
 ```bash
 cd ~/Federated-Couinaud-Liver-Segmentation
 nohup bash scripts/run_center_seq.sh /data/liver D /data/liver/volumes_per_patient.csv configs/lesion_labels/D.json exp4c exp5c > seq.out 2>&1 &
 tail -f outputs/exp4c/$(cat outputs/exp4c/LAST_RUN)/client_D/run_center.log
 ```
 
-**Ubuntu (x86)** — 전남대 E, exp5c만 (MR 묶음은 spacing이 meta.json에 내장, 병변 없음 → 파일 인자 불필요)
+**Ubuntu (x86)** — 센터 E, exp5c만 (MR 묶음은 spacing이 meta.json에 내장, 병변 없음 → 파일 인자 불필요)
 ```bash
 cd ~/Federated-Couinaud-Liver-Segmentation
 nohup bash scripts/run_center.sh exp5c ~/e_center_mr E > /dev/null 2>&1 &
@@ -140,7 +140,7 @@ scripts\run_center.bat exp4c D:\couinaud\data A - D:\couinaud\spacing.xlsx D:\co
 ```bash
 nohup bash scripts/run_center.sh exp4c /data/liver D > /dev/null 2>&1 &
 ```
-인자: `<실험> <데이터 폴더> <센터 코드> [run이름|-] [spacing파일|-] [레이블맵json|-]`. 센터 코드는 A(순천향천안) B(고려대안산) C(강릉아산) D(분당서울대) E(전남대).
+인자: `<실험> <데이터 폴더> <센터 코드> [run이름|-] [spacing파일|-] [레이블맵json|-]`. 센터 코드는 A · B · C · D · E.
 
 **실행 단위 분리**: 실행할 때마다 `outputs\<실험>\<run>\` 아래에 별도로 저장된다(run 기본값 = 시작 시각, 예 `run_20260903_101500`). 가중치·지표가 이전 실행을 덮어쓰지 않는다. 중단 후 이어서 하려면 같은 run 이름을 4번째 인자로 준다(마지막 run 이름은 `outputs\<실험>\LAST_RUN`에 기록됨).
 
@@ -151,13 +151,13 @@ scripts\run_center_seq.bat D:\data\liver A exp4c exp5c
 ```bash
 nohup bash scripts/run_center_seq.sh /data/merged A exp4c exp5c > /dev/null 2>&1 &
 ```
-**사전 점검(pretest)**: 본 실험 전에 축소 설정(`exp4c_pre`/`exp5c_pre`, 5라운드×2에폭)으로 왕복 확인만 할 때는 실험 이름만 바꾸면 된다. 예 (분당 D):
+**사전 점검(pretest)**: 본 실험 전에 축소 설정(`exp4c_pre`/`exp5c_pre`, 5라운드×2에폭)으로 왕복 확인만 할 때는 실험 이름만 바꾸면 된다. 예 (센터 D):
 ```bash
 nohup bash scripts/run_center_seq.sh /data/liver D /data/liver/volumes_per_patient.csv configs/lesion_labels/D.json exp4c_pre exp5c_pre > seq_pre.out 2>&1 &
 ```
 결과는 `outputs/exp4c_pre/` 등 별도 폴더에 남으므로 삭제해도 본 실험(exp4c/exp5c)에 영향 없다.
 
-exp4c가 끝나면 자동으로 exp5c(포트 9596)에 접속한다. exp5c는 `run_single: 0`이라 단일센터 재학습 없이 FL만 수행(전남대 E는 exp5c만 실행하며 필요 시 1로 둔다). 서버는 두 실험 서버를 동시에 띄워 두면 5센터가 모두 exp4c를 마치고 접속하는 시점에 exp5c가 자연히 시작된다.
+exp4c가 끝나면 자동으로 exp5c(포트 9596)에 접속한다. exp5c는 `run_single: 0`이라 단일센터 재학습 없이 FL만 수행(센터 E는 exp5c만 실행하며 필요 시 1로 둔다). 서버는 두 실험 서버를 동시에 띄워 두면 5센터가 모두 exp4c를 마치고 접속하는 시점에 exp5c가 자연히 시작된다.
 
 동작 순서
 0. `patient_catalog.py` — 전 환자 메타·GT 부피 카탈로그.
