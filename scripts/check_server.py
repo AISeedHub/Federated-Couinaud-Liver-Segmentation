@@ -34,9 +34,13 @@ def tcp(host, port, timeout=5):
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--exp", default="exp4c,exp5c", help="점검할 실험 이름(콤마 구분, configs/<exp>.yaml)")
+    args = ap.parse_args()
     print("=== 서버 연결 점검 ===")
     targets, upload_url = [], None
-    for exp in ("exp4c", "exp5c"):
+    for exp in [e.strip() for e in args.exp.split(",") if e.strip()]:
         p = os.path.join(HERE, "configs", f"{exp}.yaml")
         if not os.path.exists(p):
             continue

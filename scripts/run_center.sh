@@ -19,7 +19,7 @@ fi
 # 서버 연결 선점검: FL 포트(9595/9596)는 single 종료 후에야 처음 접속하므로 미리 확인한다.
 # 방화벽이 막혀 있으면 single 몇 시간을 버린 뒤 FL 단계에서 멈춘다. 우회: SKIP_SERVER_CHECK=1
 if [ "${SKIP_SERVER_CHECK:-0}" != "1" ]; then
-  CHK=$(.venv/bin/python scripts/check_server.py 2>&1); CS=$?
+  CHK=$(.venv/bin/python scripts/check_server.py --exp "$EXP" 2>&1); CS=$?
   echo "$CHK" | tee -a "$LOG"
   if [ "$CS" -ne 0 ]; then
     echo "[오류] 서버 연결 점검 실패 — 서버 기동·방화벽·SERVER_IP 치환 확인 후 재실행 (건너뛰려면 SKIP_SERVER_CHECK=1)" | tee -a "$LOG"; exit 1
