@@ -51,29 +51,7 @@ bash scripts/install.sh
 ├── 00023456/
 └── ...
 ```
-**부피(mL) 계산용 픽셀 간격**: 데이터 루트에 `spacing.csv`를 두면 환자별 면내 간격을 쓴다(없으면 기본값 0.7305 mm로 계산하고 카탈로그의 `spacing_source`가 `default`로 표시됨 — Dice·HD95에는 영향 없고 mL 값만 달라진다).
-```
-<data>/spacing.csv
-case,spacing_y,spacing_x
-00012345,0.7305,0.7305
-00023456,0.6836,0.6836
-```
-값은 원본 DICOM의 PixelSpacing(mm). z는 전처리 규약상 4 mm로 고정이라 적지 않는다. 환자 폴더에 `meta.json`(`{"spacing":[4.0, sy, sx]}`)이 있으면 그것이 우선한다.
-
-**센터 원본 엑셀 시트도 그대로 사용 가능**: 데이터 폴더에 `spacing.xlsx`(또는 xlsx 파일 1개)를 두면 자동 인식한다. 열: `ID, Resolution(512|1024), Pixel spacing, Slice thickeness, Incremental[, Date]`. ID는 문자열 그대로 정확히 폴더명과 일치해야 하며(선행 0·문자 접미 포함, 예 `01311111a1`), 면내 간격은 1024 매트릭스 ×2 보정, z는 Incremental→두께→4mm(빈칸) 순으로 채워 **환자별 z가 부피·HD95에 반영**된다.
-
-**v1에서 만든 센터별 부피 CSV(`volumes_per_patient.csv`: `patient_id, orig_matrix, pixel_spacing, …`)가 있으면 그대로 쓴다.** 512 기준 간격 = `pixel_spacing × orig_matrix / 512` 로 자동 환산(예: 1024 매트릭스 0.28125 → 0.5625 mm).
-
-spacing 파일을 알려주는 방법(우선순위 순):
-1. **데이터 폴더에 넣기(권장)** — 파일이 데이터와 함께 이동하므로 명령에 아무것도 추가할 필요 없음.
-2. **명령 인자** — 파일이 다른 위치에 있을 때 수동 실행에서 명시:
-```bat
-.venv\Scripts\python scripts\single.py --config configs\exp4c.yaml --data D:\data\liver --site A --spacing-file D:\meta\volumes_per_patient.csv
-```
-(`patient_catalog.py`·`single.py`·`client.py` 공통 옵션. 인자가 폴더 내 파일보다 우선.)
-3. 환경변수 `COUINAUD_SPACING_CSV`(예비).
-
-폴더 내 파일 탐색 순서: `spacing.xlsx` → `spacing.csv` → `volumes_per_patient.csv` → (xlsx가 1개뿐이면 그 파일) → 기본값. 어느 것이 쓰였는지는 카탈로그의 `spacing_source` 열로 확인한다.
+**픽셀 간격(spacing) 파일**: 부피(mL)·HD95(mm) 계산용. 센터의 spacing 엑셀(`spacing.xlsx`)이나 v1 부피 CSV(`volumes_per_patient.csv`)를 **데이터 폴더에 넣거나 실행 명령의 인자로 주면** 자동 인식된다. ID는 환자 폴더명과 정확히 일치해야 하며, 없거나 매칭 안 되는 환자는 기본값으로 계산된다(Dice에는 영향 없음). 어떤 파일이 쓰였는지는 카탈로그의 `spacing_source` 열로 확인.
 
 첫 실행 때 각 환자 폴더에 `label.npy`(argmax 캐시, 21 MB)를 자동 생성한다. 데이터 폴더에 쓰기 권한이 없으면 환경변수 `COUINAUD_LABEL_CACHE=<쓰기 가능한 폴더>` 를 지정한다.
 
