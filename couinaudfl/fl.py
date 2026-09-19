@@ -76,6 +76,7 @@ class CouinaudClient(fl.client.NumPyClient):
         self._check_session(config, method)
         self._apply_global(parameters, method)
         v = validate(self.model, self.val_cases, self.device, self.amp)
+        os.makedirs(os.path.join(self.out, method), exist_ok=True)   # fit 없이 evaluate가 먼저 온 클라(재접속 직후)에서 폴더 부재 크래시 방지
         torch.save(self.last_global, os.path.join(self.out, method, f"global_r{rnd:02d}.pth"))
         rec = {"round": rnd, "val_dice": v["dice"], "cid": self.cid}
         if final or rnd == int(config.get("num_rounds", -1)):
