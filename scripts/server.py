@@ -85,15 +85,27 @@ def run_experiment(cfg_path, a, run):
             done = os.path.join(out, f"fold{fold}", f"DONE_{method}")
             if os.path.exists(done): log(f"skip fold{fold} {method} (done)"); continue
             od = os.path.join(out, f"fold{fold}"); log(f"=== fold {fold} / {method} : {C['min_clients']}개 클라이언트 대기 ===")
+            # 라운드 단위 재개: 이미 집계된 global_<method>_rXX.pth가 있으면 거기서 이어서(남은 라운드만) 돈다.
+            # 세션 무효(참여 미달)가 나도 손실이 세션 전체가 아니라 마지막 미집계 라운드 하나로 제한된다.
+            import re as _re, glob as _glob
+            _gl = sorted(_glob.glob(os.path.join(od, f"global_{method}_r*.pth")))
+            _resume_r = max([int(_re.search(r"_r(\d+)\.pth$", g).group(1)) for g in _gl], default=0)
+            _resume_r = min(_resume_r, C["rounds"] - 1) if _resume_r else 0   # 마지막 라운드 완료면 정상 경로가 DONE 처리
+            if _resume_r > 0:
+                _sd = torch.load(os.path.join(od, f"global_{method}_r{_resume_r:02d}.pth"), map_location="cpu", weights_only=False)
+                _m = build_model(); _m.load_state_dict(_sd); _sess_init = get_nd(_m); del _m
+                log(f"[재개] fold{fold} {method}: 라운드 {_resume_r}까지 집계본 발견 → 라운드 {_resume_r+1}부터 {C['rounds']-_resume_r}라운드 진행 (FedAdam 모멘트는 리셋)")
+            else:
+                _sess_init = init_nd
             strat = CouinaudStrategy(method, keys, od, C["rounds"], C["local_epochs"], lr=C.get("lr", 0.01), fedprox_mu=C.get("fedprox_mu", 0.01),
-                                     server_lr=C.get("fedadam_lr", 1e-3), fold=fold, fraction_fit=1.0, fraction_evaluate=1.0,
+                                     server_lr=C.get("fedadam_lr", 1e-3), fold=fold, round_offset=_resume_r, fraction_fit=1.0, fraction_evaluate=1.0,
                                      min_fit_clients=C["min_clients"], min_evaluate_clients=C["min_clients"], min_available_clients=C["min_clients"],
-                                     initial_parameters=ndarrays_to_parameters(init_nd))
+                                     initial_parameters=ndarrays_to_parameters(_sess_init))
             while True:
                 ensure_free(out, 5, f"fold{fold} {method} 세션 전")
                 t0 = time.time()
                 try:
-                    fl.server.start_server(server_address=C["server_address"], config=fl.server.ServerConfig(num_rounds=C["rounds"], round_timeout=float(C.get("round_timeout_sec", 10800))), strategy=strat)
+                    fl.server.start_server(server_address=C["server_address"], config=fl.server.ServerConfig(num_rounds=C["rounds"] - _resume_r, round_timeout=float(C.get("round_timeout_sec", 10800))), strategy=strat)
                 except RuntimeError as e:
                     if "SESSION_INVALID" in str(e):
                         # Flower가 예외 경로에서 gRPC 리스너를 정리하지 않아 같은 프로세스 내 재시작은

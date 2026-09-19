@@ -117,8 +117,11 @@ def _remove_prox(model):
 class CouinaudStrategy(FedAvg):
     """FedAvg 상속. FedAdam은 서버측 Adam으로 집계 델타를 적용. 라운드 기록·글로벌 저장."""
 
-    def __init__(self, method, model_keys, out_dir, num_rounds, local_epochs, lr=0.01, fedprox_mu=0.01, server_lr=1e-3, fold=0, **kw):
+    def __init__(self, method, model_keys, out_dir, num_rounds, local_epochs, lr=0.01, fedprox_mu=0.01, server_lr=1e-3, fold=0, round_offset=0, **kw):
+        # round_offset: 세션 무효 후 재개 시 이미 집계된 라운드 수. Flower는 1..남은라운드로 돌지만
+        # 클라이언트·저장 파일에는 절대 라운드(offset+r)를 쓴다 → 무효 손실이 세션 전체가 아니라 한 라운드로 줄어든다.
         super().__init__(**kw); self.method, self.keys, self.out, self.num_rounds = method, model_keys, out_dir, num_rounds
+        self.round_offset = int(round_offset)
         self.local_epochs, self.lr, self.mu, self.server_lr, self.fold = local_epochs, lr, fedprox_mu, server_lr, fold
         self.history = []; self.last_parameters = None; self.m = None; self.v = None; self.t = 0
         self._init_params = kw.get("initial_parameters")   # 세션 재시작 시에도 항상 깨끗한 사전학습 초기값 사용(Flower 기본은 1회 소비 후 파기)
@@ -127,37 +130,33 @@ class CouinaudStrategy(FedAvg):
     def initialize_parameters(self, client_manager):
         return self._init_params
 
-    def configure_fit(self, server_round, parameters, client_manager):
-        ins = super().configure_fit(server_round, parameters, client_manager)
-        print(f"[participation] round {server_round} sampled: {[cp.cid for cp, _ in ins]}", flush=True)
-        return ins
-
     def aggregate_fit(self, server_round, results, failures):
         # 부분 집계 금지: 결과가 참여 정원(min_fit_clients)에 못 미치면 집계 자체를 거부하고 세션을 무효화한다.
         # (죽은 연결이 명단에 유령으로 남아 '4명 샘플→3개 결과'로 진행되는 Flower 기본 동작이
         #  다기관 full-participation 설계를 오염시키는 것을 원천 차단 — 2026-09-19 실측)
         # 참여·실패 명세를 항상 남긴다 — 미달 시 실패 주체 추적용 (cid = gRPC peer 주소)
+        ar = server_round + self.round_offset
         for cp, fr in results:
-            print(f"[participation] round {server_round} OK cid={cp.cid} site={fr.metrics.get('cid', fr.metrics.get('site','?')) if fr.metrics else '?'}", flush=True)
+            print(f"[participation] round {ar} OK cid={cp.cid} site={fr.metrics.get('cid', fr.metrics.get('site','?')) if fr.metrics else '?'}", flush=True)
         for f in failures:
             if isinstance(f, tuple):
-                print(f"[participation] round {server_round} FAIL cid={f[0].cid} res={f[1]!r}"[:500], flush=True)
+                print(f"[participation] round {ar} FAIL cid={f[0].cid} res={f[1]!r}"[:500], flush=True)
             else:
-                print(f"[participation] round {server_round} FAIL exc={f!r}"[:500], flush=True)
+                print(f"[participation] round {ar} FAIL exc={f!r}"[:500], flush=True)
         if len(results) < self.min_fit_clients:
-            self.history.append({"round": server_round, "n_clients": len(results), "failures": len(failures), "invalid": True})
-            raise RuntimeError(f"SESSION_INVALID: round {server_round} results {len(results)} < required {self.min_fit_clients}")
+            self.history.append({"round": ar, "n_clients": len(results), "failures": len(failures), "invalid": True})
+            raise RuntimeError(f"SESSION_INVALID: round {ar} results {len(results)} < required {self.min_fit_clients}")
         return self._aggregate_fit_impl(server_round, results, failures)
 
     def _cfg(self, rnd, final=False):
-        return {"method": self.method, "server_round": rnd, "local_epochs": self.local_epochs, "total_epochs": self.num_rounds * self.local_epochs,
+        return {"method": self.method, "server_round": rnd + self.round_offset, "local_epochs": self.local_epochs, "total_epochs": self.num_rounds * self.local_epochs,
                 "lr": self.lr, "fedprox_mu": self.mu, "num_rounds": self.num_rounds, "fold": self.fold, "final": final}
 
     def configure_fit(self, server_round, parameters, client_manager):
         self.on_fit_config_fn = lambda r: self._cfg(r); return super().configure_fit(server_round, parameters, client_manager)
 
     def configure_evaluate(self, server_round, parameters, client_manager):
-        self.on_evaluate_config_fn = lambda r: self._cfg(r, final=(r == self.num_rounds)); return super().configure_evaluate(server_round, parameters, client_manager)
+        self.on_evaluate_config_fn = lambda r: self._cfg(r, final=(r + self.round_offset == self.num_rounds)); return super().configure_evaluate(server_round, parameters, client_manager)
 
     def _aggregate_fit_impl(self, server_round, results, failures):
         agg, metrics = super().aggregate_fit(server_round, results, failures)
@@ -170,14 +169,14 @@ class CouinaudStrategy(FedAvg):
             upd = [p + self.server_lr * m / (np.sqrt(v) + eps) for p, m, v in zip(prev, self.m, self.v)]
             agg = ndarrays_to_parameters(upd)
         self.last_parameters = agg
-        self._save_global(server_round)
+        self._save_global(server_round + self.round_offset)
         self.history.append({"round": server_round, "n_clients": len(results), "failures": len(failures),
                              "client_loss": {r.metrics.get("cid", c.cid): r.metrics.get("loss") for c, r in results}})
         return agg, metrics
 
     def aggregate_evaluate(self, server_round, results, failures):
         loss, metrics = super().aggregate_evaluate(server_round, results, failures)
-        rec = {"round": server_round, "clients": {r.metrics.get("cid", c.cid): {k: v for k, v in r.metrics.items() if k != "cid"} for c, r in results}}
+        rec = {"round": server_round + self.round_offset, "clients": {r.metrics.get("cid", c.cid): {k: v for k, v in r.metrics.items() if k != "cid"} for c, r in results}}
         self.history.append(rec); json.dump(self.history, open(os.path.join(self.out, f"round_history_{self.method}.json"), "w"), indent=1)
         return loss, metrics
 
