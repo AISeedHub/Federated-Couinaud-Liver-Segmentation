@@ -127,10 +127,23 @@ class CouinaudStrategy(FedAvg):
     def initialize_parameters(self, client_manager):
         return self._init_params
 
+    def configure_fit(self, server_round, parameters, client_manager):
+        ins = super().configure_fit(server_round, parameters, client_manager)
+        print(f"[participation] round {server_round} sampled: {[cp.cid for cp, _ in ins]}", flush=True)
+        return ins
+
     def aggregate_fit(self, server_round, results, failures):
         # 부분 집계 금지: 결과가 참여 정원(min_fit_clients)에 못 미치면 집계 자체를 거부하고 세션을 무효화한다.
         # (죽은 연결이 명단에 유령으로 남아 '4명 샘플→3개 결과'로 진행되는 Flower 기본 동작이
         #  다기관 full-participation 설계를 오염시키는 것을 원천 차단 — 2026-09-19 실측)
+        # 참여·실패 명세를 항상 남긴다 — 미달 시 실패 주체 추적용 (cid = gRPC peer 주소)
+        for cp, fr in results:
+            print(f"[participation] round {server_round} OK cid={cp.cid} site={fr.metrics.get('site','?') if fr.metrics else '?'}", flush=True)
+        for f in failures:
+            if isinstance(f, tuple):
+                print(f"[participation] round {server_round} FAIL cid={f[0].cid} res={f[1]!r}"[:500], flush=True)
+            else:
+                print(f"[participation] round {server_round} FAIL exc={f!r}"[:500], flush=True)
         if len(results) < self.min_fit_clients:
             self.history.append({"round": server_round, "n_clients": len(results), "failures": len(failures), "invalid": True})
             raise RuntimeError(f"SESSION_INVALID: round {server_round} results {len(results)} < required {self.min_fit_clients}")
