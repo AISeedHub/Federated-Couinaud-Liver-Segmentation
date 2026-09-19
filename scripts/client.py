@@ -9,11 +9,11 @@ import os, sys, time, json, argparse, datetime, socket
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import yaml, torch, flwr as fl, signal
 # NAT(공유기) 무통신 타임아웃이 학습 중(10에폭 ~13분) 연결을 끊어 결과 회신이 GrpcBridgeClosed로
-# 유실되는 것을 방지 — 60초마다 gRPC keepalive ping (2026-09-19 본런 실측: 매 라운드 3+1 실패의 원인)
+# 유실되는 것을 방지 — 305초마다 gRPC keepalive ping(서버 기본 min_recv_ping_interval 300s 초과로 GOAWAY 회피) (2026-09-19 본런 실측: 매 라운드 3+1 실패의 원인)
 import grpc as _grpc
 _orig_ich = _grpc.insecure_channel
 def _ich_keepalive(target, options=None, compression=None):
-    opts = list(options or []) + [("grpc.keepalive_time_ms", 60000), ("grpc.keepalive_timeout_ms", 20000),
+    opts = list(options or []) + [("grpc.keepalive_time_ms", 305000), ("grpc.keepalive_timeout_ms", 60000),
                                   ("grpc.keepalive_permit_without_calls", 1), ("grpc.http2.max_pings_without_data", 0)]
     return _orig_ich(target, options=opts, compression=compression)
 _grpc.insecure_channel = _ich_keepalive
