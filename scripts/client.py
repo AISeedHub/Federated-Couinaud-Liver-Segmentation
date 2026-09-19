@@ -53,7 +53,11 @@ def main():
                         model = build_model().to(dev)
                         client = CouinaudClient(model, tr, va, te, dev, od, amp=amp, workers=a.workers, log=log, cid=a.site)
                         client.expected_fold = fold; client.expected_method = method
-                    fl.client.start_client(server_address=server, client=client.to_client()); break
+                    fl.client.start_client(server_address=server, client=client.to_client())
+                    # 세션 완주 검증: 연결 종료 != 완료. 마지막 라운드 가중치가 실제 저장됐을 때만 완료로 인정
+                    if os.path.exists(os.path.join(od, method, f"r{C['rounds']:02d}_last.pth")): break
+                    log(f"연결이 끊겼으나 세션 미완(r{C['rounds']:02d} 없음) — 60s 후 재접속")
+                    import gc as _gc; del client, model; client = model = None; _gc.collect(); torch.cuda.empty_cache(); time.sleep(60)
                 except Exception as e:
                     import traceback, gc; tb = traceback.format_exc()
                     if "SESSION_MISMATCH" in tb:
