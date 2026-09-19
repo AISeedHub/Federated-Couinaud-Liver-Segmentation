@@ -12,9 +12,13 @@ import yaml, torch, flwr as fl
 import grpc as _grpc
 _orig_srv = _grpc.server
 def _srv_keepalive(*a, **k):
-    k["options"] = list(k.get("options") or []) + [("grpc.keepalive_permit_without_calls", 1),
-        ("grpc.http2.min_recv_ping_interval_without_data_ms", 30000), ("grpc.http2.max_pings_without_data", 0),
-        ("grpc.keepalive_time_ms", 60000), ("grpc.keepalive_timeout_ms", 20000)]
+    # 중복 키는 딕셔너리로 정리해 우리 값이 확실히 이기게 한다 (gRPC의 중복 인자 우선순위에 기대지 않음)
+    merged = dict(k.get("options") or [])
+    merged.update({"grpc.keepalive_permit_without_calls": 1,
+                   "grpc.http2.min_recv_ping_interval_without_data_ms": 30000,
+                   "grpc.http2.max_pings_without_data": 0,
+                   "grpc.http2.max_ping_strikes": 0})   # 0 = 핑 위반으로 GOAWAY(too_many_pings)를 절대 보내지 않음
+    k["options"] = list(merged.items())
     return _orig_srv(*a, **k)
 _grpc.server = _srv_keepalive
 from flwr.common import ndarrays_to_parameters
