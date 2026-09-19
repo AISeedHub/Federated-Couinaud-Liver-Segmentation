@@ -39,7 +39,7 @@ def main():
             n_files += 1
     rows = []
     for f in sorted(glob.glob(f"{root}/fold*/*/test_metrics.csv")):
-        fold = int(f.split("fold")[-1].split("/")[0]); method = os.path.basename(os.path.dirname(f)); df = pd.read_csv(f)
+        fold = int(f.replace("\\", "/").split("fold")[-1].split("/")[0]); method = os.path.basename(os.path.dirname(f)); df = pd.read_csv(f)
         df.insert(0, "method", method); df.insert(0, "fold", fold); df["case"] = df["case"].astype(str).map(lambda c: idmap.get(c, "Case ?")); rows.append(df)
     if rows:
         long = pd.concat(rows); long.to_csv(os.path.join(ex, "metrics_long.csv"), index=False)
