@@ -81,8 +81,14 @@ def run_experiment(cfg_path, a, run):
                     fl.server.start_server(server_address=C["server_address"], config=fl.server.ServerConfig(num_rounds=C["rounds"], round_timeout=float(C.get("round_timeout_sec", 10800))), strategy=strat)
                 except RuntimeError as e:
                     if "SESSION_INVALID" in str(e):
-                        log(f"[경고] fold {fold} {method}: 참여 미달로 세션 무효 — 60s 후 동일 세션 처음부터 재시작 ({e})")
-                        time.sleep(60); strat.history = []; strat.last_parameters = None; continue
+                        # Flower가 예외 경로에서 gRPC 리스너를 정리하지 않아 같은 프로세스 내 재시작은
+                        # 'Port already in use'가 된다 — 프로세스를 통째로 자기 재실행해 포트·유령을 청소한다.
+                        # DONE 없는 세션(지금 이 세션)부터 자동 재개된다.
+                        log(f"[경고] fold {fold} {method}: 참여 미달로 세션 무효 — 60s 후 서버 프로세스 재실행 ({e})")
+                        logf.flush(); time.sleep(60)
+                        import subprocess as _sp, sys as _sys
+                        _sp.run(["pkill", "-9", "-f", "collect_server"], check=False)
+                        os.execv(_sys.executable, [_sys.executable] + _sys.argv)
                     raise
                 got = sum(int(h.get("n_clients", 0)) for h in strat.history)
                 bad = any(h.get("invalid") for h in strat.history) or any(int(h.get("n_clients", 0)) < C["min_clients"] for h in strat.history)
