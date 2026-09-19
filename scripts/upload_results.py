@@ -26,7 +26,7 @@ def main():
     req = urllib.request.Request(a.url + f"?exp={a.exp}&site={a.site}&run={a.run}&sha={sha}", data=open(zp, "rb").read(), method="POST",
                                  headers={"Content-Type": "application/zip", "Content-Length": str(size)})
     try:
-        with urllib.request.urlopen(req, timeout=600) as r: print(f"업로드 완료 {size/2**20:.1f} MB sha {sha} → {r.read().decode()[:200]}")
+        with urllib.request.urlopen(req, timeout=7200) as r: print(f"업로드 완료 {size/2**20:.1f} MB sha {sha} → {r.read().decode()[:200]}")
     except Exception as e:
         print(f"업로드 실패({type(e).__name__}: {e}). zip은 {zp} 에 있음 — 수동 전달"); sys.exit(2)
 
