@@ -52,7 +52,7 @@ def main():
         s = summarize(rows)
         json.dump(s, open(os.path.join(od, "test_summary.json"), "w"), indent=1); log(f"fold {fold} Single test {json.dumps(s)}")
         write_marker(done, str(datetime.datetime.now()))
-    log("단일센터 완료")
+    log("단일센터 완료 SINGLE_DONE")
 
 
 if __name__ == "__main__":

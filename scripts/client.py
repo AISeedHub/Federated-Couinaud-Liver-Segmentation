@@ -65,7 +65,7 @@ def main():
                         del client, model; client = model = None; gc.collect(); torch.cuda.empty_cache(); time.sleep(30)
             write_marker(done, str(datetime.datetime.now())); log(f"fold {fold} {method} 완료")
             del model, client; torch.cuda.empty_cache(); time.sleep(C.get("gap_sec", 10))
-    log("모든 세션 완료")
+    log("모든 세션 완료 ALL_SESSIONS_DONE")
 
 
 if __name__ == "__main__":

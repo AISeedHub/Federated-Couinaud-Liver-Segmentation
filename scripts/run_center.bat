@@ -61,13 +61,13 @@ set RS=1
 for /f "tokens=2" %%r in ('findstr /b "run_single:" configs\%EXP%.yaml') do set RS=%%r
 if "%RS%"=="0" goto fl
 .venv\Scripts\python scripts\single.py --config configs\%EXP%.yaml --data "%DATA%" --site %SITE% --run %RUN% %SPACING_ARG% >> %LOG% 2>&1
-.venv\Scripts\python -c "import sys;sys.exit(0 if '단일센터 완료' in open(r'outputs/%EXP%/%RUN%/client_%SITE%/single.log',encoding='utf-8',errors='ignore').read() else 1)" || (echo [%date% %time%] single.py 미완료 - 60s 후 재시도 >> %LOG% & timeout /t 60 /nobreak >nul & goto loop)
+findstr /c:"SINGLE_DONE" outputs\%EXP%\%RUN%\client_%SITE%\single.log >nul || (echo [%date% %time%] single not finished - retry in 60s >> %LOG% & timeout /t 60 /nobreak >nul & goto loop)
 :fl
 REM 진짜 로컬(단일센터) 모델·지표를 FL 전에 먼저 서버로 전송
 .venv\Scripts\python scripts\export_results.py --exp %EXP% --site %SITE% --run %RUN% >> %LOG% 2>&1 && .venv\Scripts\python scripts\upload_results.py --exp %EXP% --site %SITE% --run %RUN% >> %LOG% 2>&1
 .venv\Scripts\python scripts\client.py --config configs\%EXP%.yaml --data "%DATA%" --site %SITE% --run %RUN% %SPACING_ARG% >> %LOG% 2>&1
 if exist outputs\%EXP%\%RUN%\client_%SITE%\STOP.txt goto end
-.venv\Scripts\python -c "import sys;sys.exit(0 if '모든 세션 완료' in open(r'%LOG%',encoding='utf-8',errors='ignore').read() else 1)" && goto end
+findstr /c:"ALL_SESSIONS_DONE" %LOG% >nul && goto end
 echo [%date% %time%] process exited unexpectedly — restart in 60s >> %LOG%
 timeout /t 60 /nobreak >nul
 goto loop
