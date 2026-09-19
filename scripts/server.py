@@ -77,11 +77,18 @@ def run_experiment(cfg_path, a, run):
             while True:
                 ensure_free(out, 5, f"fold{fold} {method} 세션 전")
                 t0 = time.time()
-                fl.server.start_server(server_address=C["server_address"], config=fl.server.ServerConfig(num_rounds=C["rounds"], round_timeout=float(C.get("round_timeout_sec", 10800))), strategy=strat)
+                try:
+                    fl.server.start_server(server_address=C["server_address"], config=fl.server.ServerConfig(num_rounds=C["rounds"], round_timeout=float(C.get("round_timeout_sec", 10800))), strategy=strat)
+                except RuntimeError as e:
+                    if "SESSION_INVALID" in str(e):
+                        log(f"[경고] fold {fold} {method}: 참여 미달로 세션 무효 — 60s 후 동일 세션 처음부터 재시작 ({e})")
+                        time.sleep(60); strat.history = []; strat.last_parameters = None; continue
+                    raise
                 got = sum(int(h.get("n_clients", 0)) for h in strat.history)
-                if got == 0:
-                    log(f"[경고] fold {fold} {method}: 유효 결과 0(클라이언트 전멸) — DONE 기록 없이 60s 후 동일 세션 재개")
-                    time.sleep(60); strat.history = []; continue
+                bad = any(h.get("invalid") for h in strat.history) or any(int(h.get("n_clients", 0)) < C["min_clients"] for h in strat.history)
+                if got == 0 or bad:
+                    log(f"[경고] fold {fold} {method}: 유효 결과 부족(전멸 또는 참여 미달 라운드) — DONE 기록 없이 60s 후 동일 세션 재시작")
+                    time.sleep(60); strat.history = []; strat.last_parameters = None; continue
                 break
             write_marker(done, f"{datetime.datetime.now()} {time.time()-t0:.0f}s\n"); log(f"fold {fold} {method} 완료 {time.time()-t0:.0f}s")
             time.sleep(C.get("gap_sec", 10))

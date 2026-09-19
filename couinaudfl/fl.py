@@ -120,7 +120,20 @@ class CouinaudStrategy(FedAvg):
         super().__init__(**kw); self.method, self.keys, self.out, self.num_rounds = method, model_keys, out_dir, num_rounds
         self.local_epochs, self.lr, self.mu, self.server_lr, self.fold = local_epochs, lr, fedprox_mu, server_lr, fold
         self.history = []; self.last_parameters = None; self.m = None; self.v = None; self.t = 0
+        self._init_params = kw.get("initial_parameters")   # 세션 재시작 시에도 항상 깨끗한 사전학습 초기값 사용(Flower 기본은 1회 소비 후 파기)
         os.makedirs(out_dir, exist_ok=True)
+
+    def initialize_parameters(self, client_manager):
+        return self._init_params
+
+    def aggregate_fit(self, server_round, results, failures):
+        # 부분 집계 금지: 결과가 참여 정원(min_fit_clients)에 못 미치면 집계 자체를 거부하고 세션을 무효화한다.
+        # (죽은 연결이 명단에 유령으로 남아 '4명 샘플→3개 결과'로 진행되는 Flower 기본 동작이
+        #  다기관 full-participation 설계를 오염시키는 것을 원천 차단 — 2026-09-19 실측)
+        if len(results) < self.min_fit_clients:
+            self.history.append({"round": server_round, "n_clients": len(results), "failures": len(failures), "invalid": True})
+            raise RuntimeError(f"SESSION_INVALID: round {server_round} results {len(results)} < required {self.min_fit_clients}")
+        return self._aggregate_fit_impl(server_round, results, failures)
 
     def _cfg(self, rnd, final=False):
         return {"method": self.method, "server_round": rnd, "local_epochs": self.local_epochs, "total_epochs": self.num_rounds * self.local_epochs,
@@ -132,7 +145,7 @@ class CouinaudStrategy(FedAvg):
     def configure_evaluate(self, server_round, parameters, client_manager):
         self.on_evaluate_config_fn = lambda r: self._cfg(r, final=(r == self.num_rounds)); return super().configure_evaluate(server_round, parameters, client_manager)
 
-    def aggregate_fit(self, server_round, results, failures):
+    def _aggregate_fit_impl(self, server_round, results, failures):
         agg, metrics = super().aggregate_fit(server_round, results, failures)
         if agg is None: return agg, metrics
         if self.method == "FedAdam" and self.last_parameters is not None:
