@@ -117,8 +117,11 @@ def run_experiment(cfg_path, a, run):
                         _sp.run(["pkill", "-9", "-f", "collect_server"], check=False)
                         os.execv(_sys.executable, [_sys.executable] + _sys.argv)
                     raise
-                got = sum(int(h.get("n_clients", 0)) for h in strat.history)
-                bad = any(h.get("invalid") for h in strat.history) or any(int(h.get("n_clients", 0)) < C["min_clients"] for h in strat.history)
+                got = sum(int(h["n_clients"]) for h in strat.history if "n_clients" in h)
+                # fit 기록만 검사한다 — aggregate_evaluate가 남기는 history 항목엔 n_clients 키가 없어(0으로 읽힘)
+                # 정상 완주 세션도 '참여 미달'로 오판하던 버그 수정 (2026-09-20, FedAvg 최초 완주 시 표면화)
+                fit_hist = [h for h in strat.history if "n_clients" in h]
+                bad = any(h.get("invalid") for h in fit_hist) or any(int(h["n_clients"]) < C["min_clients"] for h in fit_hist)
                 if got == 0 or bad:
                     log(f"[경고] fold {fold} {method}: 유효 결과 부족(전멸 또는 참여 미달 라운드) — DONE 기록 없이 60s 후 동일 세션 재시작")
                     time.sleep(60); strat.history = []; strat.last_parameters = None; continue
