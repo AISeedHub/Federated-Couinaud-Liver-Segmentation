@@ -17,7 +17,9 @@ def _srv_keepalive(*a, **k):
     merged.update({"grpc.keepalive_permit_without_calls": 1,
                    "grpc.http2.min_recv_ping_interval_without_data_ms": 30000,
                    "grpc.http2.max_pings_without_data": 0,
-                   "grpc.http2.max_ping_strikes": 0})   # 0 = 핑 위반으로 GOAWAY(too_many_pings)를 절대 보내지 않음
+                   "grpc.http2.max_ping_strikes": 0,
+                   "grpc.keepalive_time_ms": 7200000,      # 서버발 핑 사실상 비활성(클라 핑이 NAT 유지 담당)
+                   "grpc.keepalive_timeout_ms": 1200000})  # 느린 업로드 정체 중 성급한 절단 방지(20분)   # 0 = 핑 위반으로 GOAWAY(too_many_pings)를 절대 보내지 않음
     k["options"] = list(merged.items())
     return _orig_srv(*a, **k)
 _grpc.server = _srv_keepalive

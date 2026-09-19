@@ -13,7 +13,7 @@ import yaml, torch, flwr as fl, signal
 import grpc as _grpc
 _orig_ich = _grpc.insecure_channel
 def _ich_keepalive(target, options=None, compression=None):
-    opts = list(options or []) + [("grpc.keepalive_time_ms", 120000), ("grpc.keepalive_timeout_ms", 60000),
+    opts = list(options or []) + [("grpc.keepalive_time_ms", 120000), ("grpc.keepalive_timeout_ms", 1200000),
                                   ("grpc.keepalive_permit_without_calls", 1), ("grpc.http2.max_pings_without_data", 0)]
     return _orig_ich(target, options=opts, compression=compression)
 _grpc.insecure_channel = _ich_keepalive
