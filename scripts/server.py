@@ -8,6 +8,15 @@
 import os, sys, json, argparse, time, datetime
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import yaml, torch, flwr as fl
+# 클라이언트의 keepalive ping(60s)을 서버가 거부(GOAWAY too_many_pings)하지 않도록 허용
+import grpc as _grpc
+_orig_srv = _grpc.server
+def _srv_keepalive(*a, **k):
+    k["options"] = list(k.get("options") or []) + [("grpc.keepalive_permit_without_calls", 1),
+        ("grpc.http2.min_recv_ping_interval_without_data_ms", 30000), ("grpc.http2.max_pings_without_data", 0),
+        ("grpc.keepalive_time_ms", 60000), ("grpc.keepalive_timeout_ms", 20000)]
+    return _orig_srv(*a, **k)
+_grpc.server = _srv_keepalive
 from flwr.common import ndarrays_to_parameters
 from couinaudfl.model import build_model
 from couinaudfl.fsutil import write_marker, ensure_free

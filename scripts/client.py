@@ -8,6 +8,15 @@ STOP.txt 가 outputs/<exp>/ 에 있으면 현 세션 후 종료. 완료된 (fold
 import os, sys, time, json, argparse, datetime, socket
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import yaml, torch, flwr as fl, signal
+# NAT(공유기) 무통신 타임아웃이 학습 중(10에폭 ~13분) 연결을 끊어 결과 회신이 GrpcBridgeClosed로
+# 유실되는 것을 방지 — 60초마다 gRPC keepalive ping (2026-09-19 본런 실측: 매 라운드 3+1 실패의 원인)
+import grpc as _grpc
+_orig_ich = _grpc.insecure_channel
+def _ich_keepalive(target, options=None, compression=None):
+    opts = list(options or []) + [("grpc.keepalive_time_ms", 60000), ("grpc.keepalive_timeout_ms", 20000),
+                                  ("grpc.keepalive_permit_without_calls", 1), ("grpc.http2.max_pings_without_data", 0)]
+    return _orig_ich(target, options=opts, compression=compression)
+_grpc.insecure_channel = _ich_keepalive
 # 터미널 오조작(Ctrl+C/Break) 무시 — 종료는 STOP.txt 로만
 for _sig in ("SIGINT", "SIGBREAK"):
     if hasattr(signal, _sig): signal.signal(getattr(signal, _sig), signal.SIG_IGN)

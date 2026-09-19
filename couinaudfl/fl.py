@@ -138,7 +138,7 @@ class CouinaudStrategy(FedAvg):
         #  다기관 full-participation 설계를 오염시키는 것을 원천 차단 — 2026-09-19 실측)
         # 참여·실패 명세를 항상 남긴다 — 미달 시 실패 주체 추적용 (cid = gRPC peer 주소)
         for cp, fr in results:
-            print(f"[participation] round {server_round} OK cid={cp.cid} site={fr.metrics.get('site','?') if fr.metrics else '?'}", flush=True)
+            print(f"[participation] round {server_round} OK cid={cp.cid} site={fr.metrics.get('cid', fr.metrics.get('site','?')) if fr.metrics else '?'}", flush=True)
         for f in failures:
             if isinstance(f, tuple):
                 print(f"[participation] round {server_round} FAIL cid={f[0].cid} res={f[1]!r}"[:500], flush=True)
