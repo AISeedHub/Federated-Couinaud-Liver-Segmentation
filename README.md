@@ -27,7 +27,7 @@ cd Federated-Couinaud-Liver-Segmentation
 scripts\install.bat
 ```
 PowerShell에서는 `.\scripts\install.bat` 처럼 앞에 `.\`를 붙인다(실행 정책 변경 불필요). 이후 모든 `.bat` 실행도 동일.
-### Linux / DGX Spark
+### Linux
 ```bash
 git clone https://github.com/AISeedHub/Federated-Couinaud-Liver-Segmentation.git
 cd Federated-Couinaud-Liver-Segmentation
@@ -87,10 +87,10 @@ scripts\run_center_seq.bat D:\couinaud\data A D:\couinaud\spacing.xlsx D:\couina
 (C는 센터 코드와 경로만 교체.) 창을 닫지 말 것. 절전·화면 잠금은 스크립트가 해제한다.
 재부팅 후 이어서: `set RUN_NAME=<outputs\exp4c\LAST_RUN 내용>` 지정 후 같은 명령.
 
-**DGX Spark (Linux aarch64)** — 센터 B
+**Linux (aarch64 포함)** — 센터 B
 ```bash
 cd ~/Federated-Couinaud-Liver-Segmentation
-nohup bash scripts/run_center_seq.sh /home/crex/fedlr/LiverSegmentation/merged B /home/crex/fedlr/spacing.xlsx exp4c exp5c > /dev/null 2>&1 &
+nohup bash scripts/run_center_seq.sh <DATA_DIR> B <SPACING_XLSX> exp4c exp5c > /dev/null 2>&1 &
 tail -f outputs/exp4c/$(cat outputs/exp4c/LAST_RUN)/client_B/run_center.log
 ```
 (레이블맵은 레포 내장 B 매핑 자동 적용 — 직접 주려면 `.json` 경로를 인자에 추가.)
